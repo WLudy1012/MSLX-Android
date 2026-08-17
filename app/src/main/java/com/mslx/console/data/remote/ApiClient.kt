@@ -29,6 +29,27 @@ object ApiClient {
             .create(MslxApi::class.java)
     }
 
+    /** 构建 MSLX 官方在线 API 客户端(无需认证)。 */
+    fun buildMslJavaApi(): MslJavaApi {
+        val client = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                val request = chain.request().newBuilder()
+                    .addHeader("User-Agent", "MSLX-Android/1.0")
+                    .build()
+                chain.proceed(request)
+            }
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .build()
+
+        return Retrofit.Builder()
+            .baseUrl("https://api.mslmc.cn/v3/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(MslJavaApi::class.java)
+    }
+
     private fun ensureTrailingSlash(url: String): String =
         if (url.endsWith("/")) url else "$url/"
 }

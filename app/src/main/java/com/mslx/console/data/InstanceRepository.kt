@@ -4,10 +4,12 @@ import com.mslx.console.data.model.ActionRequest
 import com.mslx.console.data.model.CommandResultPayload
 import com.mslx.console.data.model.InstanceInfo
 import com.mslx.console.data.model.InstanceSummary
+import com.mslx.console.data.model.LocalJava
 import com.mslx.console.data.model.PmListData
 import com.mslx.console.data.model.PmSetRequest
 import com.mslx.console.data.model.SaveFileRequest
 import com.mslx.console.data.model.ServerSettings
+import com.mslx.console.data.model.StatusData
 import com.mslx.console.data.remote.ApiClient
 import com.mslx.console.data.remote.ConsoleHubClient
 import com.mslx.console.data.remote.MslxApi
@@ -42,6 +44,23 @@ class InstanceRepository {
     suspend fun verify(): Result<Unit> = runCatching {
         val resp = requireApi().status()
         if (resp.code != 200) throw IllegalStateException(resp.message ?: "API Key 无效")
+    }
+
+    suspend fun getStatus(): Result<StatusData> = runCatching {
+        val resp = requireApi().status()
+        if (resp.code != 200) throw IllegalStateException(resp.message ?: "获取状态失败")
+        resp.data ?: throw IllegalStateException("返回数据为空")
+    }
+
+    suspend fun javaList(refresh: Boolean = false): Result<List<LocalJava>> = runCatching {
+        val resp = requireApi().javaList(refresh)
+        if (resp.code != 200) throw IllegalStateException(resp.message ?: "获取 Java 列表失败")
+        resp.data ?: emptyList()
+    }
+
+    /** 从 MSLAPI 在线获取 Java 版本号列表。 */
+    suspend fun onlineJavaVersions(os: String, arch: String): Result<List<String>> = runCatching {
+        ApiClient.buildMslJavaApi().jdkVersions(os, arch)
     }
 
     suspend fun listInstances(): Result<List<InstanceSummary>> = runCatching {

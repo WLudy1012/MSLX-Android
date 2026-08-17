@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mslx.console.MSLXApplication
+import com.mslx.console.data.model.LocalJava
 import com.mslx.console.data.model.ServerSettings
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,6 +18,8 @@ data class InstanceSettingsUiState(
     val error: String? = null,
     val saving: Boolean = false,
     val settings: ServerSettings? = null,
+    val onlineJavaVersions: List<String> = emptyList(),
+    val localJavas: List<LocalJava> = emptyList(),
 )
 
 class InstanceSettingsViewModel(
@@ -49,6 +52,23 @@ class InstanceSettingsViewModel(
                     }
                 },
             )
+            loadJavaOptions()
+        }
+    }
+
+    /** 拉取在线 Java 版本 + 本地 Java 列表。 */
+    fun loadJavaOptions() {
+        viewModelScope.launch {
+            val locals = repository.javaList(refresh = false).getOrDefault(emptyList())
+            _state.update { it.copy(localJavas = locals) }
+
+            val status = repository.getStatus().getOrNull()
+            val os = status?.systemInfo?.osType?.lowercase()?.replaceFirst("os", "") ?: ""
+            val arch = status?.systemInfo?.osArchitecture?.lowercase() ?: ""
+            if (os.isNotBlank() && arch.isNotBlank()) {
+                val versions = repository.onlineJavaVersions(os, arch).getOrDefault(emptyList())
+                _state.update { it.copy(onlineJavaVersions = versions) }
+            }
         }
     }
 

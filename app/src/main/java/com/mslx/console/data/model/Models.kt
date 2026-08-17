@@ -18,6 +18,22 @@ data class StatusData(
     @SerializedName("version") val version: String? = null,
     @SerializedName("user") val user: String? = null,
     @SerializedName("username") val username: String? = null,
+    @SerializedName("systemInfo") val systemInfo: SystemInfo? = null,
+)
+
+/** 守护程序所在主机系统信息。 */
+data class SystemInfo(
+    @SerializedName("osType") val osType: String? = null,
+    @SerializedName("osArchitecture") val osArchitecture: String? = null,
+)
+
+/** GET /api/java/list 的 data 数组元素(本地 Java 环境)。 */
+data class LocalJava(
+    @SerializedName("path") val path: String = "",
+    @SerializedName("home") val home: String? = null,
+    @SerializedName("version") val version: String = "",
+    @SerializedName("vendor") val vendor: String? = null,
+    @SerializedName("is64Bit") val is64Bit: Boolean = false,
 )
 
 /** 实例列表项中的额外信息。 */

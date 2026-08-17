@@ -167,7 +167,15 @@ fun InstanceSettingsScreen(
                     // 启动配置
                     item { SectionTitle("启动配置") }
                     item {
-                        TextSetting("Java 环境", s.java) { v -> viewModel.update { it.copy(java = v) } }
+                        JavaEnvironmentSelector(
+                            java = s.java,
+                            dockerImage = s.dockerImage,
+                            args = s.args,
+                            onlineVersions = state.onlineJavaVersions,
+                            localJavas = state.localJavas,
+                            onJavaChanged = { v -> viewModel.update { it.copy(java = v) } },
+                            onDockerImageChanged = { v -> viewModel.update { it.copy(dockerImage = v) } },
+                        )
                     }
                     item {
                         TextSetting("核心文件名", s.core) { v -> viewModel.update { it.copy(core = v) } }

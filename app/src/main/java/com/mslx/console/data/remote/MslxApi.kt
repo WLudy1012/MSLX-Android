@@ -4,6 +4,7 @@ import com.mslx.console.data.model.ActionRequest
 import com.mslx.console.data.model.ApiResponse
 import com.mslx.console.data.model.InstanceInfo
 import com.mslx.console.data.model.InstanceSummary
+import com.mslx.console.data.model.LocalJava
 import com.mslx.console.data.model.PmListData
 import com.mslx.console.data.model.PmSetRequest
 import com.mslx.console.data.model.SaveFileRequest
@@ -66,4 +67,7 @@ interface MslxApi {
         @Path("id") id: Long,
         @Body body: SaveFileRequest,
     ): ApiResponse<Any?>
+
+    @GET("api/java/list")
+    suspend fun javaList(@Query("refresh") refresh: Boolean = false): ApiResponse<List<LocalJava>>
 }
