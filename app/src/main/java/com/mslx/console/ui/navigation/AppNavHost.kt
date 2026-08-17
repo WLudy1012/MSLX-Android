@@ -19,6 +19,9 @@ import com.mslx.console.data.AppSettings
 import com.mslx.console.ui.connect.ConnectScreen
 import com.mslx.console.ui.console.ConsoleScreen
 import com.mslx.console.ui.instances.InstancesScreen
+import com.mslx.console.ui.settings.InstanceSettingsScreen
+import com.mslx.console.ui.settings.PluginsModsScreen
+import com.mslx.console.ui.settings.ServerPropertiesScreen
 import com.mslx.console.ui.settings.SettingsScreen
 import com.mslx.console.ui.splash.SplashScreen
 import com.mslx.console.ui.welcome.WelcomeScreen
@@ -30,9 +33,15 @@ object Routes {
     const val INSTANCES = "instances"
     const val SETTINGS = "settings"
     const val CONSOLE = "console/{instanceId}"
+    const val INSTANCE_SETTINGS = "instanceSettings/{instanceId}"
+    const val PLUGINS_MODS = "pluginsMods/{instanceId}"
+    const val SERVER_PROPS = "serverProps/{instanceId}"
 
     fun console(instanceId: Long): String = "console/$instanceId"
     fun connect(auto: Boolean): String = "connect?auto=$auto"
+    fun instanceSettings(instanceId: Long): String = "instanceSettings/$instanceId"
+    fun pluginsMods(instanceId: Long): String = "pluginsMods/$instanceId"
+    fun serverProps(instanceId: Long): String = "serverProps/$instanceId"
 }
 
 @Composable
@@ -135,6 +144,50 @@ fun AppNavHost(
         ) { backStackEntry ->
             val instanceId = backStackEntry.arguments?.getLong("instanceId") ?: 0L
             ConsoleScreen(
+                instanceId = instanceId,
+                onBack = { navController.popBackStack() },
+                onOpenSettings = {
+                    navController.navigate(Routes.instanceSettings(instanceId)) {
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
+
+        composable(
+            route = Routes.INSTANCE_SETTINGS,
+            arguments = listOf(navArgument("instanceId") { type = NavType.LongType }),
+        ) { backStackEntry ->
+            val instanceId = backStackEntry.arguments?.getLong("instanceId") ?: 0L
+            InstanceSettingsScreen(
+                instanceId = instanceId,
+                onBack = { navController.popBackStack() },
+                onOpenPluginsMods = {
+                    navController.navigate(Routes.pluginsMods(instanceId)) { launchSingleTop = true }
+                },
+                onOpenServerProps = {
+                    navController.navigate(Routes.serverProps(instanceId)) { launchSingleTop = true }
+                },
+            )
+        }
+
+        composable(
+            route = Routes.PLUGINS_MODS,
+            arguments = listOf(navArgument("instanceId") { type = NavType.LongType }),
+        ) { backStackEntry ->
+            val instanceId = backStackEntry.arguments?.getLong("instanceId") ?: 0L
+            PluginsModsScreen(
+                instanceId = instanceId,
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            route = Routes.SERVER_PROPS,
+            arguments = listOf(navArgument("instanceId") { type = NavType.LongType }),
+        ) { backStackEntry ->
+            val instanceId = backStackEntry.arguments?.getLong("instanceId") ?: 0L
+            ServerPropertiesScreen(
                 instanceId = instanceId,
                 onBack = { navController.popBackStack() },
             )

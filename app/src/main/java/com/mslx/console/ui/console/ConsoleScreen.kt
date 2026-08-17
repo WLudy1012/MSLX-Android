@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -76,6 +77,7 @@ import kotlinx.coroutines.launch
 fun ConsoleScreen(
     instanceId: Long,
     onBack: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val viewModel: ConsoleViewModel = viewModel(
         key = "console_$instanceId",
@@ -141,6 +143,11 @@ fun ConsoleScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Filled.Settings, contentDescription = "实例设置")
                     }
                 },
             )
