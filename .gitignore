@@ -1,0 +1,15 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+build/
+/captures
+.externalNativeBuild/
+.cxx/
+.kotlin/
+# 签名与本地配置（敏感，切勿提交）
+keystore.properties
+/keystore/
+*.jks
+*.keystore
