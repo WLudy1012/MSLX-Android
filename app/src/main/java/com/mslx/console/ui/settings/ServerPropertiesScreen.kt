@@ -244,14 +244,10 @@ private fun PropCard(
 
             when (prop.type) {
                 PropType.BOOLEAN -> {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("否", style = MaterialTheme.typography.labelMedium)
-                        Switch(
-                            checked = value == "true",
-                            onCheckedChange = { onValueChange(it.toString()) },
-                        )
-                        Text("是", style = MaterialTheme.typography.labelMedium)
-                    }
+                    Switch(
+                        checked = value == "true",
+                        onCheckedChange = { onValueChange(it.toString()) },
+                    )
                 }
 
                 PropType.SELECT -> SelectDropdown(prop.options, value, onValueChange)

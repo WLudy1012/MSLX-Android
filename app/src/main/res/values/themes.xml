@@ -1,7 +1,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Compose 应用使用系统 NoActionBar 主题作为宿主窗口主题，实际配色由 Compose 主题控制。 -->
     <style name="Theme.MSLXConsole" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:windowBackground">@color/window_background</item>
     </style>
 
     <!-- Android 12+ 系统开屏(SplashScreen)，由 androidx.core:core-splashscreen 提供兼容。 -->
