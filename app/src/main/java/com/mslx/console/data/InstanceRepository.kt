@@ -95,8 +95,12 @@ class InstanceRepository {
 
     suspend fun pmList(id: Long, mode: String): Result<PmListData> = runCatching {
         val resp = requireApi().pmList(id, mode)
-        if (resp.code != 200) throw IllegalStateException(resp.message ?: "获取列表失败")
-        resp.data ?: throw IllegalStateException("返回数据为空")
+        when {
+            // 目录不存在(如纯模组服没有插件目录)→ 当作空列表，避免报 404
+            resp.code == 404 -> PmListData()
+            resp.code != 200 -> throw IllegalStateException(resp.message ?: "获取列表失败")
+            else -> resp.data ?: PmListData()
+        }
     }
 
     suspend fun pmSet(id: Long, mode: String, action: String, targets: List<String>): Result<String> = runCatching {

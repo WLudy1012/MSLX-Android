@@ -44,7 +44,8 @@ class PluginsModsViewModel(
     }
 
     fun load() {
-        _state.update { it.copy(loading = true, error = null) }
+        // 加载前清空 data，避免切换模式时残留上一模式的旧列表
+        _state.update { it.copy(loading = true, error = null, data = null) }
         viewModelScope.launch {
             repository.pmList(instanceId, _state.value.mode).fold(
                 onSuccess = { data -> _state.update { it.copy(loading = false, data = data) } },

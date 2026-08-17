@@ -35,9 +35,8 @@ fun JavaEnvironmentSelector(
     onJavaChanged: (String) -> Unit,
     onDockerImageChanged: (String) -> Unit,
 ) {
-    val javaType = remember(java, dockerImage, args, localJavas) {
-        parseJavaType(java, dockerImage, args, localJavas)
-    }
+    // 独立状态：用户选择的类型不会被 java 反推回 custom
+    var javaType by remember { mutableStateOf(parseJavaType(java, dockerImage, args, localJavas)) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         SelectorField(
@@ -46,6 +45,7 @@ fun JavaEnvironmentSelector(
             selectedValue = javaType.value,
             onSelect = { value ->
                 val type = JavaType.entries.first { it.value == value }
+                javaType = type
                 onJavaChanged(defaultJavaFor(type))
                 if (type == JavaType.DOCKER_JAVA || type == JavaType.MCDR_DOCKER_JAVA) {
                     onDockerImageChanged(dockerImageForVersion(dockerJavaVersion(dockerImage)))
