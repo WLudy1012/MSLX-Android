@@ -1,11 +1,8 @@
 package com.mslx.console.ui.navigation
 
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
@@ -26,9 +23,21 @@ import com.mslx.console.ui.settings.SettingsScreen
 import com.mslx.console.ui.splash.SplashScreen
 import com.mslx.console.ui.user.UserCenterScreen
 import com.mslx.console.ui.welcome.WelcomeScreen
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 
@@ -53,30 +62,27 @@ object Routes {
     fun serverProps(instanceId: Long): String = "serverProps/$instanceId"
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavHost(
     settings: AppSettings,
     navController: NavHostController = rememberNavController(),
 ) {
+    fun navigateTopLevel(route: String) {
+        navController.navigate(route) {
+            popUpTo(Routes.INSTANCES) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = Routes.SPLASH,
-        // 前进：新页从右滑入 + 淡入；旧页左移淡出
-        enterTransition = {
-            slideInHorizontally(tween(360, easing = FastOutSlowInEasing)) { it } +
-                fadeIn(tween(360))
-        },
-        exitTransition = {
-            slideOutHorizontally(tween(320)) { -it / 4 } + fadeOut(tween(320))
-        },
-        // 返回：反向
-        popEnterTransition = {
-            slideInHorizontally(tween(360, easing = FastOutSlowInEasing)) { -it / 4 } +
-                fadeIn(tween(360))
-        },
-        popExitTransition = {
-            slideOutHorizontally(tween(320)) { it } + fadeOut(tween(320))
-        },
+        enterTransition = { fadeIn(tween(180)) },
+        exitTransition = { fadeOut(tween(120)) },
+        popEnterTransition = { fadeIn(tween(180)) },
+        popExitTransition = { fadeOut(tween(120)) },
     ) {
 
         composable(Routes.SPLASH) {
@@ -119,7 +125,6 @@ fun AppNavHost(
         ) { entry ->
             val autoConnect = entry.arguments?.getBoolean("autoConnect") ?: true
             val daemonId = entry.arguments?.getString("daemonId")?.takeIf { it.isNotBlank() }
-            val canGoBack = navController.previousBackStackEntry != null
             ConnectScreen(
                 onConnected = {
                     navController.navigate(Routes.INSTANCES) {
@@ -127,7 +132,7 @@ fun AppNavHost(
                         launchSingleTop = true
                     }
                 },
-                onBack = if (canGoBack) ({ navController.popBackStack() }) else null,
+                onBack = { navController.popBackStack() },
                 autoConnect = autoConnect,
                 editingDaemonId = daemonId,
             )
@@ -136,10 +141,10 @@ fun AppNavHost(
         composable(Routes.INSTANCES) {
             InstancesScreen(
                 onOpenSettings = {
-                    navController.navigate(Routes.SETTINGS) { launchSingleTop = true }
+                    navigateTopLevel(Routes.SETTINGS)
                 },
                 onOpenNewInstance = {
-                    navController.navigate(Routes.NEW_INSTANCE) { launchSingleTop = true }
+                    navigateTopLevel(Routes.NEW_INSTANCE)
                 },
                 onOpenInstance = { id ->
                     navController.navigate(Routes.console(id)) { launchSingleTop = true }
@@ -148,16 +153,29 @@ fun AppNavHost(
         }
 
         composable(Routes.NEW_INSTANCE) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("新建实例功能暂未开放")
+            Scaffold(
+                topBar = { androidx.compose.material3.TopAppBar(title = { Text("新建实例") }) },
+                bottomBar = {
+                    NavigationBar {
+                        NavigationBarItem(selected = false, onClick = { navigateTopLevel(Routes.INSTANCES) }, icon = { Icon(Icons.Filled.List, null) }, label = { Text("实例") })
+                        NavigationBarItem(selected = true, onClick = {}, icon = { Icon(Icons.Filled.Add, null) }, label = { Text("新建") })
+                        NavigationBarItem(selected = false, onClick = { navigateTopLevel(Routes.SETTINGS) }, icon = { Icon(Icons.Filled.Settings, null) }, label = { Text("设置") })
+                    }
+                },
+            ) { padding ->
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    Text("新建实例功能暂未开放")
+                }
             }
         }
 
         composable(Routes.SETTINGS) {
             SettingsScreen(
-                onBack = { navController.popBackStack() },
                 onOpenInstances = {
-                    navController.navigate(Routes.INSTANCES) { launchSingleTop = true }
+                    navigateTopLevel(Routes.INSTANCES)
+                },
+                onOpenNewInstance = {
+                    navigateTopLevel(Routes.NEW_INSTANCE)
                 },
                 onAddDaemon = {
                     navController.navigate(Routes.connect(false)) { launchSingleTop = true }

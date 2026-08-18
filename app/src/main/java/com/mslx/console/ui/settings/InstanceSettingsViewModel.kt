@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.mslx.console.MSLXApplication
 import com.mslx.console.data.model.LocalJava
 import com.mslx.console.data.model.ServerSettings
+import com.mslx.console.data.remote.UpdateProgressClient
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -17,6 +18,9 @@ data class InstanceSettingsUiState(
     val loading: Boolean = true,
     val error: String? = null,
     val saving: Boolean = false,
+    val updateProgress: Double? = null,
+    val updateMessage: String? = null,
+    val updateError: Boolean = false,
     val settings: ServerSettings? = null,
     val onlineJavaVersions: List<String> = emptyList(),
     val localJavas: List<LocalJava> = emptyList(),
@@ -34,6 +38,8 @@ class InstanceSettingsViewModel(
 
     private val _message = MutableSharedFlow<String>(extraBufferCapacity = 4)
     val message = _message.asSharedFlow()
+
+    private var updateClient: UpdateProgressClient? = null
 
     init {
         load()
@@ -64,7 +70,11 @@ class InstanceSettingsViewModel(
 
             val status = repository.getStatus().getOrNull()
             val os = status?.systemInfo?.osType?.lowercase()?.replaceFirst("os", "") ?: ""
-            val arch = status?.systemInfo?.osArchitecture?.lowercase() ?: ""
+            val arch = when (status?.systemInfo?.osArchitecture?.lowercase()) {
+                "amd64", "x86_64" -> "x64"
+                "aarch64" -> "arm64"
+                else -> status?.systemInfo?.osArchitecture?.lowercase().orEmpty()
+            }
             if (os.isNotBlank() && arch.isNotBlank()) {
                 val versions = repository.onlineJavaVersions(os, arch).getOrDefault(emptyList())
                 _state.update { it.copy(onlineJavaVersions = versions) }
@@ -83,12 +93,18 @@ class InstanceSettingsViewModel(
     fun save() {
         val settings = _state.value.settings ?: return
         if (_state.value.saving) return
-        _state.update { it.copy(saving = true) }
+        _state.update { it.copy(saving = true, updateProgress = null, updateMessage = null, updateError = false) }
         viewModelScope.launch {
             repository.updateSettings(instanceId, settings).fold(
-                onSuccess = { msg ->
-                    _message.tryEmit(msg)
-                    _state.update { it.copy(saving = false) }
+                onSuccess = { result ->
+                    val (msg, needListen) = result
+                    if (needListen) {
+                        startUpdateProgress()
+                        _message.tryEmit(msg)
+                    } else {
+                        _message.tryEmit(msg)
+                        _state.update { it.copy(saving = false) }
+                    }
                 },
                 onFailure = { e ->
                     _message.tryEmit("保存失败：${e.message ?: "未知错误"}")
@@ -96,5 +112,38 @@ class InstanceSettingsViewModel(
                 },
             )
         }
+    }
+
+    private fun startUpdateProgress() {
+        updateClient?.disconnect()
+        val client = UpdateProgressClient(
+            baseUrl = repository.baseUrl,
+            apiKey = repository.apiKey,
+            instanceId = instanceId,
+        ) { message, progress, isError ->
+            _state.update {
+                it.copy(
+                    updateProgress = progress,
+                    updateMessage = message,
+                    updateError = isError,
+                    saving = progress < 100.0 && !isError,
+                )
+            }
+            if (progress >= 100.0 && !isError) {
+                _message.tryEmit("配置更新完成")
+                updateClient?.disconnect()
+            }
+        }
+        updateClient = client
+        try {
+            client.connect()
+        } catch (e: Exception) {
+            _state.update { it.copy(saving = false, updateError = true, updateMessage = "连接更新进度失败：${e.message}") }
+        }
+    }
+
+    override fun onCleared() {
+        updateClient?.disconnect()
+        super.onCleared()
     }
 }

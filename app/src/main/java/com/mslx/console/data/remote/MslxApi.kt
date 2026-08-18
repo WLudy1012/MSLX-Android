@@ -2,6 +2,9 @@ package com.mslx.console.data.remote
 
 import com.mslx.console.data.model.ActionRequest
 import com.mslx.console.data.model.ApiResponse
+import com.mslx.console.data.model.AdminCreateUserRequest
+import com.mslx.console.data.model.AdminUpdateUserRequest
+import com.mslx.console.data.model.FrpSummary
 import com.mslx.console.data.model.InstanceInfo
 import com.mslx.console.data.model.InstanceSummary
 import com.mslx.console.data.model.LocalJava
@@ -13,6 +16,8 @@ import com.mslx.console.data.model.ServerSettings
 import com.mslx.console.data.model.StatusData
 import com.mslx.console.data.model.UploadFinishRequest
 import com.mslx.console.data.model.UploadInitData
+import com.mslx.console.data.model.UpdateSelfRequest
+import com.mslx.console.data.model.UpdateSettingsData
 import com.mslx.console.data.model.UserInfo
 import okhttp3.MultipartBody
 import retrofit2.http.Body
@@ -48,7 +53,7 @@ interface MslxApi {
     suspend fun updateInstanceSettings(
         @Path("id") id: Long,
         @Body body: ServerSettings,
-    ): ApiResponse<Any?>
+    ): ApiResponse<UpdateSettingsData>
 
     @GET("api/files/pm/instance/{id}/list")
     suspend fun pmList(
@@ -80,6 +85,27 @@ interface MslxApi {
 
     @GET("api/user/me")
     suspend fun userMe(): ApiResponse<UserInfo>
+
+    @POST("api/user/me/update")
+    suspend fun updateSelf(@Body body: UpdateSelfRequest): ApiResponse<Any?>
+
+    @GET("api/admin/user/list")
+    suspend fun adminUserList(): ApiResponse<List<UserInfo>>
+
+    @POST("api/admin/user/create")
+    suspend fun adminCreateUser(@Body body: AdminCreateUserRequest): ApiResponse<Any?>
+
+    @POST("api/admin/user/update/{id}")
+    suspend fun adminUpdateUser(
+        @Path("id") id: String,
+        @Body body: AdminUpdateUserRequest,
+    ): ApiResponse<Any?>
+
+    @POST("api/admin/user/delete/{id}")
+    suspend fun adminDeleteUser(@Path("id") id: String): ApiResponse<Any?>
+
+    @GET("api/frp/list")
+    suspend fun frpList(): ApiResponse<List<FrpSummary>>
 
     @POST("api/files/upload/init")
     suspend fun uploadInit(): ApiResponse<UploadInitData>

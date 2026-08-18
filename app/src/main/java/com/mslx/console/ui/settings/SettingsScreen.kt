@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
@@ -61,8 +60,8 @@ import com.mslx.console.ui.theme.PresetColors
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
-    onBack: () -> Unit,
     onOpenInstances: () -> Unit,
+    onOpenNewInstance: () -> Unit,
     onAddDaemon: () -> Unit,
     onEditDaemon: (String) -> Unit,
     onOpenUserCenter: () -> Unit,
@@ -75,18 +74,13 @@ fun SettingsScreen(
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(selected = false, onClick = onOpenInstances, icon = { Icon(Icons.Filled.List, null) }, label = { Text("实例") })
-                NavigationBarItem(selected = false, onClick = onAddDaemon, icon = { Icon(Icons.Filled.Add, null) }, label = { Text("新建") })
+                NavigationBarItem(selected = false, onClick = onOpenNewInstance, icon = { Icon(Icons.Filled.Add, null) }, label = { Text("新建") })
                 NavigationBarItem(selected = true, onClick = {}, icon = { Icon(Icons.Filled.Settings, null) }, label = { Text("设置") })
             }
         },
         topBar = {
             TopAppBar(
                 title = { Text("设置") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                },
             )
         },
     ) { innerPadding ->

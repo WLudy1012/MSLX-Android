@@ -20,6 +20,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -142,6 +143,27 @@ fun InstanceSettingsScreen(
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
+                    if (state.updateProgress != null) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (state.updateError) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer,
+                                ),
+                            ) {
+                                Column(Modifier.padding(14.dp)) {
+                                    Text(state.updateMessage ?: "正在更新配置", fontWeight = FontWeight.SemiBold)
+                                    if (!state.updateError) {
+                                        LinearProgressIndicator(
+                                            progress = { ((state.updateProgress ?: 0.0) / 100.0).toFloat().coerceIn(0f, 1f) },
+                                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // 快捷入口
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

@@ -12,6 +12,10 @@ data class ApiResponse<T>(
     @SerializedName("data") val data: T? = null,
 )
 
+data class UpdateSettingsData(
+    @SerializedName("needListen") val needListen: Boolean = false,
+)
+
 /** GET /api/status 的 data 字段(部分字段)。 */
 data class StatusData(
     @SerializedName("clientName") val clientName: String? = null,
@@ -45,6 +49,40 @@ data class UserInfo(
     @SerializedName("role") val role: String? = null,
     @SerializedName("apiKey") val apiKey: String? = null,
     @SerializedName("lastLoginTime") val lastLoginTime: String? = null,
+    @SerializedName("resources") val resources: List<String> = emptyList(),
+    @SerializedName("openMSLID") val openMSLID: String? = null,
+)
+
+data class FrpSummary(
+    @SerializedName("id") val id: Int = 0,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("service") val service: String? = null,
+)
+
+data class UpdateSelfRequest(
+    @SerializedName("username") val username: String? = null,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("avatar") val avatar: String? = null,
+    @SerializedName("password") val password: String? = null,
+    @SerializedName("resetApiKey") val resetApiKey: Boolean = false,
+    @SerializedName("resources") val resources: List<String>? = null,
+)
+
+data class AdminCreateUserRequest(
+    @SerializedName("username") val username: String,
+    @SerializedName("password") val password: String,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("role") val role: String = "user",
+    @SerializedName("resources") val resources: List<String> = emptyList(),
+)
+
+data class AdminUpdateUserRequest(
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("avatar") val avatar: String? = null,
+    @SerializedName("password") val password: String? = null,
+    @SerializedName("role") val role: String? = null,
+    @SerializedName("resetApiKey") val resetApiKey: Boolean = false,
+    @SerializedName("resources") val resources: List<String>? = null,
 )
 
 /** 实例列表项中的额外信息。 */

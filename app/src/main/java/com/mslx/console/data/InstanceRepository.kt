@@ -2,6 +2,9 @@ package com.mslx.console.data
 
 import com.mslx.console.data.model.ActionRequest
 import com.mslx.console.data.model.CommandResultPayload
+import com.mslx.console.data.model.AdminCreateUserRequest
+import com.mslx.console.data.model.AdminUpdateUserRequest
+import com.mslx.console.data.model.FrpSummary
 import com.mslx.console.data.model.InstanceInfo
 import com.mslx.console.data.model.InstanceSummary
 import com.mslx.console.data.model.LocalJava
@@ -12,6 +15,8 @@ import com.mslx.console.data.model.SaveUploadRequest
 import com.mslx.console.data.model.ServerSettings
 import com.mslx.console.data.model.StatusData
 import com.mslx.console.data.model.UploadFinishRequest
+import com.mslx.console.data.model.UpdateSelfRequest
+import com.mslx.console.data.model.UpdateSettingsData
 import com.mslx.console.data.model.UserInfo
 import com.mslx.console.data.remote.ApiClient
 import com.mslx.console.data.remote.ConsoleHubClient
@@ -119,10 +124,56 @@ class InstanceRepository {
         resp.data ?: throw IllegalStateException("返回数据为空")
     }
 
-    suspend fun updateSettings(id: Long, settings: ServerSettings): Result<String> = runCatching {
-        val resp = requireApi().updateInstanceSettings(id, settings)
+    suspend fun updateSettings(id: Long, settings: ServerSettings): Result<Pair<String, Boolean>> = runCatching {
+        val normalized = settings.copy(java = normalizeJavaConfig(settings.java))
+        val resp = requireApi().updateInstanceSettings(id, normalized)
         if (resp.code != 200) throw IllegalStateException(resp.message ?: "保存失败")
-        resp.message ?: "保存成功"
+        (resp.message ?: "保存成功") to (resp.data?.needListen == true)
+    }
+
+    private fun normalizeJavaConfig(java: String): String {
+        val version = java.removePrefix("MSLX://Java/").trim()
+        return if (version.isNotBlank() && java.startsWith("MSLX://Java/")) {
+            "MSLX://Java/$version"
+        } else {
+            java.trim()
+        }
+    }
+
+    suspend fun updateSelf(body: UpdateSelfRequest): Result<String> = runCatching {
+        val resp = requireApi().updateSelf(body)
+        if (resp.code != 200) throw IllegalStateException(resp.message ?: "更新用户信息失败")
+        resp.message ?: "更新成功"
+    }
+
+    suspend fun adminUserList(): Result<List<UserInfo>> = runCatching {
+        val resp = requireApi().adminUserList()
+        if (resp.code != 200) throw IllegalStateException(resp.message ?: "获取用户列表失败")
+        resp.data.orEmpty()
+    }
+
+    suspend fun adminCreateUser(body: AdminCreateUserRequest): Result<String> = runCatching {
+        val resp = requireApi().adminCreateUser(body)
+        if (resp.code != 200) throw IllegalStateException(resp.message ?: "创建用户失败")
+        resp.message ?: "创建成功"
+    }
+
+    suspend fun adminUpdateUser(id: String, body: AdminUpdateUserRequest): Result<String> = runCatching {
+        val resp = requireApi().adminUpdateUser(id, body)
+        if (resp.code != 200) throw IllegalStateException(resp.message ?: "更新用户失败")
+        resp.message ?: "更新成功"
+    }
+
+    suspend fun adminDeleteUser(id: String): Result<String> = runCatching {
+        val resp = requireApi().adminDeleteUser(id)
+        if (resp.code != 200) throw IllegalStateException(resp.message ?: "删除用户失败")
+        resp.message ?: "删除成功"
+    }
+
+    suspend fun frpList(): Result<List<FrpSummary>> = runCatching {
+        val resp = requireApi().frpList()
+        if (resp.code != 200) throw IllegalStateException(resp.message ?: "获取 FRP 列表失败")
+        resp.data.orEmpty()
     }
 
     suspend fun pmList(id: Long, mode: String): Result<PmListData> = runCatching {
