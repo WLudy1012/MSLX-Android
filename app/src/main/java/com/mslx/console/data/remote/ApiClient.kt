@@ -12,7 +12,7 @@ object ApiClient {
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
                     .addHeader("x-api-key", apiKey)
-                    .addHeader("User-Agent", "MSLX-Android/1.0")
+                    .addHeader("User-Agent", "MSLX-Android/1.2.3")
                     .build()
                 chain.proceed(request)
             }
@@ -34,7 +34,7 @@ object ApiClient {
         val client = OkHttpClient.Builder()
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
-                    .addHeader("User-Agent", "MSLX-Android/1.0")
+                    .addHeader("User-Agent", "MSLX-Android/1.2.3")
                     .build()
                 chain.proceed(request)
             }
@@ -48,6 +48,28 @@ object ApiClient {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(MslJavaApi::class.java)
+    }
+
+    /** 构建 Microsoft OpenJDK GitHub API 客户端(无需认证)。 */
+    fun buildMicrosoftJavaApi(): MicrosoftJavaApi {
+        val client = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                val request = chain.request().newBuilder()
+                    .addHeader("Accept", "application/vnd.github+json")
+                    .addHeader("User-Agent", "MSLX-Android/1.2.3")
+                    .build()
+                chain.proceed(request)
+            }
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .build()
+
+        return Retrofit.Builder()
+            .baseUrl("https://api.github.com/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(MicrosoftJavaApi::class.java)
     }
 
     private fun ensureTrailingSlash(url: String): String =

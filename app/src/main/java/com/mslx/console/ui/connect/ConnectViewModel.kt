@@ -27,6 +27,7 @@ data class ConnectUiState(
 class ConnectViewModel(
     application: Application,
     private val autoConnect: Boolean = true,
+    private val editingDaemonId: String? = null,
 ) : AndroidViewModel(application) {
 
     private val container = getApplication<MSLXApplication>().container
@@ -40,21 +41,22 @@ class ConnectViewModel(
     val connected = _connected.asSharedFlow()
 
     init {
-        if (autoConnect) {
+        if (autoConnect || editingDaemonId != null) {
             viewModelScope.launch {
                 val settings = store.settingsFlow.first()
-                val active = settings.activeDaemon
-                if (active != null) {
+                val target = settings.daemons.firstOrNull { it.id == editingDaemonId }
+                    ?: settings.activeDaemon
+                if (target != null) {
                     _state.update {
                         it.copy(
-                            editingId = active.id,
-                            name = active.name,
-                            baseUrl = active.baseUrl.ifBlank { "http://localhost:1027" },
-                            apiKey = active.apiKey,
+                            editingId = target.id,
+                            name = target.name,
+                            baseUrl = target.baseUrl.ifBlank { "http://localhost:1027" },
+                            apiKey = target.apiKey,
                         )
                     }
                     // 已有激活的 Daemon → 自动连接
-                    doConnect(active, auto = true)
+                    if (autoConnect) doConnect(target, auto = true)
                 }
             }
         }

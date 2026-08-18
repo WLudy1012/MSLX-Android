@@ -56,13 +56,14 @@ fun ConnectScreen(
     onConnected: () -> Unit,
     onBack: (() -> Unit)? = null,
     autoConnect: Boolean = true,
+    editingDaemonId: String? = null,
 ) {
     val viewModel: ConnectViewModel = viewModel(
-        key = "connect_$autoConnect",
+        key = "connect_${autoConnect}_$editingDaemonId",
         factory = viewModelFactory {
             initializer {
                 val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as Application
-                ConnectViewModel(app, autoConnect)
+                ConnectViewModel(app, autoConnect, editingDaemonId)
             }
         },
     )
@@ -77,7 +78,7 @@ fun ConnectScreen(
         topBar = {
             if (onBack != null) {
                 TopAppBar(
-                    title = { Text("添加 Daemon") },
+                    title = { Text(if (editingDaemonId == null) "添加 Daemon" else "编辑 Daemon") },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")

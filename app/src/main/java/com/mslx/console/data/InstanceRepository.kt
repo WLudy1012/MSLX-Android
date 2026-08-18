@@ -64,10 +64,36 @@ class InstanceRepository {
         resp.data ?: emptyList()
     }
 
-    /** 从 MSLAPI 在线获取 Java 版本号列表。 */
+    /** 从 MSLAPI 获取在线 Java 版本，失败时回退到 Microsoft OpenJDK。 */
     suspend fun onlineJavaVersions(os: String, arch: String): Result<List<String>> = runCatching {
-        ApiClient.buildMslJavaApi().jdkVersions(os, arch)
+        val mslVersions = runCatching {
+            val response = ApiClient.buildMslJavaApi().jdkVersions(os, arch)
+            if (response.code == 200) response.data.orEmpty() else emptyList()
+        }.getOrDefault(emptyList())
+
+        if (mslVersions.isNotEmpty()) {
+            return@runCatching normalizeJavaVersions(mslVersions)
+        }
+
+        val microsoftVersions = ApiClient.buildMicrosoftJavaApi()
+            .releases()
+            .asSequence()
+            .mapNotNull { release ->
+                Regex("(?:jdk|java|microsoft)[-_]?(\\d+)", RegexOption.IGNORE_CASE)
+                    .find(release.tag_name.orEmpty())
+                    ?.groupValues
+                    ?.getOrNull(1)
+            }
+            .toList()
+        normalizeJavaVersions(microsoftVersions).ifEmpty {
+            throw IllegalStateException("MSLAPI 和微软官方均未返回 Java 版本")
+        }
     }
+
+    private fun normalizeJavaVersions(versions: List<String>): List<String> = versions
+        .filter { it.isNotBlank() }
+        .distinct()
+        .sortedWith(compareByDescending { it.toIntOrNull() ?: 0 })
 
     suspend fun listInstances(): Result<List<InstanceSummary>> = runCatching {
         val resp = requireApi().instanceList()

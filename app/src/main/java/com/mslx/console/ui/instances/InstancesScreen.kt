@@ -19,7 +19,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -29,6 +30,8 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -52,12 +55,20 @@ import com.mslx.console.ui.statusColor
 @Composable
 fun InstancesScreen(
     onOpenSettings: () -> Unit,
+    onOpenNewInstance: () -> Unit,
     onOpenInstance: (Long) -> Unit,
     viewModel: InstancesViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     Scaffold(
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(selected = true, onClick = {}, icon = { Icon(Icons.Filled.List, null) }, label = { Text("实例") })
+                NavigationBarItem(selected = false, onClick = onOpenNewInstance, icon = { Icon(Icons.Filled.Add, null) }, label = { Text("新建") })
+                NavigationBarItem(selected = false, onClick = onOpenSettings, icon = { Icon(Icons.Filled.Settings, null) }, label = { Text("设置") })
+            }
+        },
         topBar = {
             TopAppBar(
                 title = {
@@ -74,14 +85,7 @@ fun InstancesScreen(
                         }
                     }
                 },
-                actions = {
-                    IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "刷新")
-                    }
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Filled.Settings, contentDescription = "设置")
-                    }
-                },
+                actions = {},
             )
         },
     ) { innerPadding ->

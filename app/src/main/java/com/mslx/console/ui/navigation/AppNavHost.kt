@@ -26,13 +26,19 @@ import com.mslx.console.ui.settings.SettingsScreen
 import com.mslx.console.ui.splash.SplashScreen
 import com.mslx.console.ui.user.UserCenterScreen
 import com.mslx.console.ui.welcome.WelcomeScreen
+import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 
 object Routes {
     const val SPLASH = "splash"
     const val WELCOME = "welcome"
-    const val CONNECT = "connect?auto={autoConnect}"
+    const val CONNECT = "connect?auto={autoConnect}&daemonId={daemonId}"
     const val INSTANCES = "instances"
     const val SETTINGS = "settings"
+    const val NEW_INSTANCE = "newInstance"
     const val CONSOLE = "console/{instanceId}"
     const val INSTANCE_SETTINGS = "instanceSettings/{instanceId}"
     const val PLUGINS_MODS = "pluginsMods/{instanceId}"
@@ -40,7 +46,8 @@ object Routes {
     const val USER_CENTER = "userCenter"
 
     fun console(instanceId: Long): String = "console/$instanceId"
-    fun connect(auto: Boolean): String = "connect?auto=$auto"
+    fun connect(auto: Boolean, daemonId: String? = null): String =
+        "connect?auto=$auto&daemonId=${daemonId.orEmpty()}"
     fun instanceSettings(instanceId: Long): String = "instanceSettings/$instanceId"
     fun pluginsMods(instanceId: Long): String = "pluginsMods/$instanceId"
     fun serverProps(instanceId: Long): String = "serverProps/$instanceId"
@@ -104,9 +111,14 @@ fun AppNavHost(
                     type = NavType.BoolType
                     defaultValue = true
                 },
+                navArgument("daemonId") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
             ),
         ) { entry ->
             val autoConnect = entry.arguments?.getBoolean("autoConnect") ?: true
+            val daemonId = entry.arguments?.getString("daemonId")?.takeIf { it.isNotBlank() }
             val canGoBack = navController.previousBackStackEntry != null
             ConnectScreen(
                 onConnected = {
@@ -117,6 +129,7 @@ fun AppNavHost(
                 },
                 onBack = if (canGoBack) ({ navController.popBackStack() }) else null,
                 autoConnect = autoConnect,
+                editingDaemonId = daemonId,
             )
         }
 
@@ -125,17 +138,32 @@ fun AppNavHost(
                 onOpenSettings = {
                     navController.navigate(Routes.SETTINGS) { launchSingleTop = true }
                 },
+                onOpenNewInstance = {
+                    navController.navigate(Routes.NEW_INSTANCE) { launchSingleTop = true }
+                },
                 onOpenInstance = { id ->
                     navController.navigate(Routes.console(id)) { launchSingleTop = true }
                 },
             )
         }
 
+        composable(Routes.NEW_INSTANCE) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("新建实例功能暂未开放")
+            }
+        }
+
         composable(Routes.SETTINGS) {
             SettingsScreen(
                 onBack = { navController.popBackStack() },
+                onOpenInstances = {
+                    navController.navigate(Routes.INSTANCES) { launchSingleTop = true }
+                },
                 onAddDaemon = {
                     navController.navigate(Routes.connect(false)) { launchSingleTop = true }
+                },
+                onEditDaemon = { daemonId ->
+                    navController.navigate(Routes.connect(false, daemonId)) { launchSingleTop = true }
                 },
                 onOpenUserCenter = {
                     navController.navigate(Routes.USER_CENTER) { launchSingleTop = true }

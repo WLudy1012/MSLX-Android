@@ -1,5 +1,6 @@
 package com.mslx.console.data.remote
 
+import com.mslx.console.data.model.ApiResponse
 import retrofit2.http.GET
 import retrofit2.http.Query
 
@@ -10,5 +11,15 @@ interface MslJavaApi {
     suspend fun jdkVersions(
         @Query("os") os: String,
         @Query("arch") arch: String,
-    ): List<String>
+    ): ApiResponse<List<String>>
+}
+
+/** Microsoft OpenJDK 官方仓库的 Release 摘要。 */
+data class MicrosoftOpenJdkRelease(
+    val tag_name: String? = null,
+)
+
+interface MicrosoftJavaApi {
+    @GET("repos/microsoft/openjdk/releases")
+    suspend fun releases(@Query("per_page") pageSize: Int = 100): List<MicrosoftOpenJdkRelease>
 }

@@ -24,7 +24,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -32,6 +34,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -58,7 +62,9 @@ import com.mslx.console.ui.theme.PresetColors
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onOpenInstances: () -> Unit,
     onAddDaemon: () -> Unit,
+    onEditDaemon: (String) -> Unit,
     onOpenUserCenter: () -> Unit,
     viewModel: SettingsViewModel = viewModel(),
 ) {
@@ -66,6 +72,13 @@ fun SettingsScreen(
     var pendingDelete by remember { mutableStateOf<DaemonConfig?>(null) }
 
     Scaffold(
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(selected = false, onClick = onOpenInstances, icon = { Icon(Icons.Filled.List, null) }, label = { Text("实例") })
+                NavigationBarItem(selected = false, onClick = onAddDaemon, icon = { Icon(Icons.Filled.Add, null) }, label = { Text("新建") })
+                NavigationBarItem(selected = true, onClick = {}, icon = { Icon(Icons.Filled.Settings, null) }, label = { Text("设置") })
+            }
+        },
         topBar = {
             TopAppBar(
                 title = { Text("设置") },
@@ -176,6 +189,7 @@ fun SettingsScreen(
                                 daemon = daemon,
                                 isActive = daemon.id == settings.activeDaemonId,
                                 onSelect = { viewModel.setActiveDaemon(daemon.id) },
+                                onEdit = { onEditDaemon(daemon.id) },
                                 onDelete = { pendingDelete = daemon },
                             )
                         }
@@ -288,6 +302,7 @@ private fun DaemonRow(
     daemon: DaemonConfig,
     isActive: Boolean,
     onSelect: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
     Row(
@@ -312,6 +327,13 @@ private fun DaemonRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+        IconButton(onClick = onEdit) {
+            Icon(
+                imageVector = Icons.Filled.Settings,
+                contentDescription = "编辑",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         IconButton(onClick = onDelete) {
             Icon(
