@@ -1,10 +1,16 @@
 package com.mslx.console.ui.settings
 
 import android.app.Application
+import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mslx.console.MSLXApplication
 import com.mslx.console.data.model.PmListData
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -61,6 +67,48 @@ class PluginsModsViewModel(
     }
 
     fun delete(fileName: String) = runAction("delete", listOf(fileName))
+
+    /** 多线程分片上传插件/模组文件。 */
+    fun upload(uri: Uri) {
+        if (_state.value.busy) return
+        _state.update { it.copy(busy = true) }
+        viewModelScope.launch {
+            val app = getApplication<MSLXApplication>()
+            val result = runCatching {
+                val bytes = app.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                    ?: throw IllegalStateException("无法读取文件")
+                val fileName = queryFileName(app, uri) ?: "upload.jar"
+                val chunkSize = 5 * 1024 * 1024
+                val chunks = bytes.toList().chunked(chunkSize)
+
+                val uploadId = repository.uploadInit().getOrThrow()
+
+                // 多线程并行上传分片
+                coroutineScope {
+                    chunks.mapIndexed { index, chunk ->
+                        async(Dispatchers.IO) {
+                            repository.uploadChunk(uploadId, index, chunk.toByteArray()).getOrThrow()
+                        }
+                    }.awaitAll()
+                }
+
+                repository.uploadFinish(uploadId, chunks.size).getOrThrow()
+                repository.saveUpload(instanceId, uploadId, fileName, _state.value.mode).getOrThrow()
+            }
+            result.fold(
+                onSuccess = { msg -> _message.tryEmit(msg) },
+                onFailure = { e -> _message.tryEmit("上传失败：${e.message ?: "未知错误"}") },
+            )
+            _state.update { it.copy(busy = false) }
+            load()
+        }
+    }
+
+    private fun queryFileName(app: Application, uri: Uri): String? =
+        app.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (idx >= 0 && cursor.moveToFirst()) cursor.getString(idx) else null
+        }
 
     private fun runAction(action: String, targets: List<String>) {
         if (_state.value.busy) return

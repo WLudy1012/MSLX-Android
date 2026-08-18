@@ -7,12 +7,15 @@ import com.mslx.console.MSLXApplication
 import com.mslx.console.data.AppSettings
 import com.mslx.console.data.ThemeMode
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val store = getApplication<MSLXApplication>().container.settingsStore
+    private val container = getApplication<MSLXApplication>().container
+    private val store = container.settingsStore
+    private val repository = container.instanceRepository
 
     val settings = store.settingsFlow.stateIn(
         viewModelScope,
@@ -25,7 +28,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun setActiveDaemon(id: String) {
-        viewModelScope.launch { store.setActiveDaemon(id) }
+        viewModelScope.launch {
+            // 立即重新配置 repository，使后续请求指向新 Daemon（无需重启）
+            val daemon = store.settingsFlow.first().daemons.firstOrNull { it.id == id }
+            if (daemon != null) {
+                repository.configure(daemon.baseUrl, daemon.apiKey)
+            }
+            store.setActiveDaemon(id)
+        }
     }
 
     fun removeDaemon(id: String) {

@@ -56,12 +56,27 @@ fun JavaEnvironmentSelector(
         when (javaType) {
             JavaType.ONLINE -> {
                 Spacer(Modifier.padding(top = 8.dp))
-                SelectorField(
-                    label = "在线 Java 版本",
-                    options = onlineVersions.map { v -> v to "Java $v (在线)" },
-                    selectedValue = java.removePrefix("MSLX://Java/"),
-                    onSelect = { v -> onJavaChanged("MSLX://Java/$v") },
-                )
+                if (onlineVersions.isEmpty()) {
+                    // 在线版本列表获取失败时，允许手动输入版本号兜底
+                    OutlinedTextField(
+                        value = java.removePrefix("MSLX://Java/"),
+                        onValueChange = { v ->
+                            onJavaChanged(if (v.isBlank()) "" else "MSLX://Java/$v")
+                        },
+                        label = { Text("Java 版本号（在线列表获取失败，可手动输入）") },
+                        placeholder = { Text("例如 17 或 21") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    SelectorField(
+                        label = "在线 Java 版本",
+                        options = onlineVersions.map { v -> v to "Java $v (在线)" },
+                        selectedValue = java.removePrefix("MSLX://Java/"),
+                        onSelect = { v -> onJavaChanged("MSLX://Java/$v") },
+                    )
+                }
             }
 
             JavaType.LOCAL -> {

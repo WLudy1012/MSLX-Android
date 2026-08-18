@@ -36,6 +36,17 @@ data class LocalJava(
     @SerializedName("is64Bit") val is64Bit: Boolean = false,
 )
 
+/** GET /api/user/me 的 data 字段(当前登录用户信息)。 */
+data class UserInfo(
+    @SerializedName("id") val id: String? = null,
+    @SerializedName("username") val username: String? = null,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("avatar") val avatar: String? = null,
+    @SerializedName("role") val role: String? = null,
+    @SerializedName("apiKey") val apiKey: String? = null,
+    @SerializedName("lastLoginTime") val lastLoginTime: String? = null,
+)
+
 /** 实例列表项中的额外信息。 */
 data class InstanceExtra(
     @SerializedName("onlinePlayers") val onlinePlayers: Int = 0,

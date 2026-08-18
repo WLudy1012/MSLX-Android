@@ -8,11 +8,17 @@ import com.mslx.console.data.model.LocalJava
 import com.mslx.console.data.model.PmListData
 import com.mslx.console.data.model.PmSetRequest
 import com.mslx.console.data.model.SaveFileRequest
+import com.mslx.console.data.model.SaveUploadRequest
 import com.mslx.console.data.model.ServerSettings
 import com.mslx.console.data.model.StatusData
+import com.mslx.console.data.model.UploadFinishRequest
+import com.mslx.console.data.model.UserInfo
 import com.mslx.console.data.remote.ApiClient
 import com.mslx.console.data.remote.ConsoleHubClient
 import com.mslx.console.data.remote.MslxApi
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 
 /** 实例相关的数据入口，封装 REST 调用与 SignalR 控制台客户端创建。 */
 class InstanceRepository {
@@ -95,11 +101,13 @@ class InstanceRepository {
 
     suspend fun pmList(id: Long, mode: String): Result<PmListData> = runCatching {
         val resp = requireApi().pmList(id, mode)
+        val body = resp.body()
         when {
             // 目录不存在(如纯模组服没有插件目录)→ 当作空列表，避免报 404
-            resp.code == 404 -> PmListData()
-            resp.code != 200 -> throw IllegalStateException(resp.message ?: "获取列表失败")
-            else -> resp.data ?: PmListData()
+            resp.code() == 404 -> PmListData()
+            !resp.isSuccessful || body == null -> throw IllegalStateException(body?.message ?: "获取列表失败")
+            body.code != 200 -> throw IllegalStateException(body.message ?: "获取列表失败")
+            else -> body.data ?: PmListData()
         }
     }
 
@@ -118,6 +126,40 @@ class InstanceRepository {
     suspend fun saveFileContent(id: Long, path: String, content: String): Result<String> = runCatching {
         val resp = requireApi().saveFileContent(id, SaveFileRequest(path, content))
         if (resp.code != 200) throw IllegalStateException(resp.message ?: "保存失败")
+        resp.message ?: "保存成功"
+    }
+
+    suspend fun userMe(): Result<UserInfo> = runCatching {
+        val resp = requireApi().userMe()
+        if (resp.code != 200) throw IllegalStateException(resp.message ?: "获取用户信息失败")
+        resp.data ?: throw IllegalStateException("返回数据为空")
+    }
+
+    suspend fun uploadInit(): Result<String> = runCatching {
+        val resp = requireApi().uploadInit()
+        if (resp.code != 200) throw IllegalStateException(resp.message ?: "初始化上传失败")
+        resp.data?.uploadId ?: throw IllegalStateException("未返回 uploadId")
+    }
+
+    suspend fun uploadChunk(uploadId: String, index: Int, bytes: ByteArray): Result<Unit> = runCatching {
+        val part = MultipartBody.Part.createFormData(
+            "file",
+            "chunk_$index",
+            bytes.toRequestBody("application/octet-stream".toMediaType()),
+        )
+        val resp = requireApi().uploadChunk(uploadId, index, part)
+        if (resp.code != 200) throw IllegalStateException(resp.message ?: "上传分片失败")
+    }
+
+    suspend fun uploadFinish(uploadId: String, totalChunks: Int): Result<String> = runCatching {
+        val resp = requireApi().uploadFinish(uploadId, UploadFinishRequest(totalChunks))
+        if (resp.code != 200) throw IllegalStateException(resp.message ?: "合并分片失败")
+        resp.message ?: "上传成功"
+    }
+
+    suspend fun saveUpload(id: Long, uploadId: String, fileName: String, currentPath: String): Result<String> = runCatching {
+        val resp = requireApi().saveUpload(id, SaveUploadRequest(uploadId, fileName, currentPath))
+        if (resp.code != 200) throw IllegalStateException(resp.message ?: "保存文件失败")
         resp.message ?: "保存成功"
     }
 

@@ -1,6 +1,8 @@
 package com.mslx.console.ui.settings
 
 import android.app.Application
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
@@ -70,6 +73,10 @@ fun PluginsModsScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) viewModel.upload(uri)
+    }
+
     LaunchedEffect(Unit) {
         viewModel.message.collect { snackbarHostState.showSnackbar(it) }
     }
@@ -86,6 +93,17 @@ fun PluginsModsScreen(
                 actions = {
                     IconButton(onClick = viewModel::load) {
                         Icon(Icons.Filled.Refresh, contentDescription = "刷新")
+                    }
+                    TextButton(
+                        onClick = { filePicker.launch("*/*") },
+                        enabled = !state.busy,
+                    ) {
+                        if (state.busy) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(Icons.Filled.Add, contentDescription = null)
+                            Text("上传")
+                        }
                     }
                 },
             )

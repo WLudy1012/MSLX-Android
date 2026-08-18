@@ -25,3 +25,20 @@ data class SaveFileRequest(
     @SerializedName("path") val path: String,
     @SerializedName("content") val content: String,
 )
+
+/** 上传初始化响应 data。 */
+data class UploadInitData(
+    @SerializedName("uploadId") val uploadId: String = "",
+)
+
+/** 完成分片上传请求。 */
+data class UploadFinishRequest(
+    @SerializedName("totalChunks") val totalChunks: Int,
+)
+
+/** 保存上传文件到实例目录请求。 */
+data class SaveUploadRequest(
+    @SerializedName("uploadId") val uploadId: String,
+    @SerializedName("fileName") val fileName: String,
+    @SerializedName("currentPath") val currentPath: String,
+)

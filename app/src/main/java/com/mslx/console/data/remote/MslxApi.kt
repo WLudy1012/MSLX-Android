@@ -8,11 +8,18 @@ import com.mslx.console.data.model.LocalJava
 import com.mslx.console.data.model.PmListData
 import com.mslx.console.data.model.PmSetRequest
 import com.mslx.console.data.model.SaveFileRequest
+import com.mslx.console.data.model.SaveUploadRequest
 import com.mslx.console.data.model.ServerSettings
 import com.mslx.console.data.model.StatusData
+import com.mslx.console.data.model.UploadFinishRequest
+import com.mslx.console.data.model.UploadInitData
+import com.mslx.console.data.model.UserInfo
+import okhttp3.MultipartBody
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -48,7 +55,7 @@ interface MslxApi {
         @Path("id") id: Long,
         @Query("mode") mode: String,
         @Query("checkClient") checkClient: Boolean = false,
-    ): ApiResponse<PmListData>
+    ): retrofit2.Response<ApiResponse<PmListData>>
 
     @POST("api/files/pm/instance/{id}/set")
     suspend fun pmSet(
@@ -70,4 +77,30 @@ interface MslxApi {
 
     @GET("api/java/list")
     suspend fun javaList(@Query("refresh") refresh: Boolean = false): ApiResponse<List<LocalJava>>
+
+    @GET("api/user/me")
+    suspend fun userMe(): ApiResponse<UserInfo>
+
+    @POST("api/files/upload/init")
+    suspend fun uploadInit(): ApiResponse<UploadInitData>
+
+    @Multipart
+    @POST("api/files/upload/chunk/{uploadId}")
+    suspend fun uploadChunk(
+        @Path("uploadId") uploadId: String,
+        @Part("index") index: Int,
+        @Part file: MultipartBody.Part,
+    ): ApiResponse<Any?>
+
+    @POST("api/files/upload/finish/{uploadId}")
+    suspend fun uploadFinish(
+        @Path("uploadId") uploadId: String,
+        @Body body: UploadFinishRequest,
+    ): ApiResponse<Any?>
+
+    @POST("api/files/instance/{id}/upload")
+    suspend fun saveUpload(
+        @Path("id") id: Long,
+        @Body body: SaveUploadRequest,
+    ): ApiResponse<Any?>
 }

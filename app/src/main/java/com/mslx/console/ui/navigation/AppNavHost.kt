@@ -24,6 +24,7 @@ import com.mslx.console.ui.settings.PluginsModsScreen
 import com.mslx.console.ui.settings.ServerPropertiesScreen
 import com.mslx.console.ui.settings.SettingsScreen
 import com.mslx.console.ui.splash.SplashScreen
+import com.mslx.console.ui.user.UserCenterScreen
 import com.mslx.console.ui.welcome.WelcomeScreen
 
 object Routes {
@@ -36,6 +37,7 @@ object Routes {
     const val INSTANCE_SETTINGS = "instanceSettings/{instanceId}"
     const val PLUGINS_MODS = "pluginsMods/{instanceId}"
     const val SERVER_PROPS = "serverProps/{instanceId}"
+    const val USER_CENTER = "userCenter"
 
     fun console(instanceId: Long): String = "console/$instanceId"
     fun connect(auto: Boolean): String = "connect?auto=$auto"
@@ -135,7 +137,14 @@ fun AppNavHost(
                 onAddDaemon = {
                     navController.navigate(Routes.connect(false)) { launchSingleTop = true }
                 },
+                onOpenUserCenter = {
+                    navController.navigate(Routes.USER_CENTER) { launchSingleTop = true }
+                },
             )
+        }
+
+        composable(Routes.USER_CENTER) {
+            UserCenterScreen(onBack = { navController.popBackStack() })
         }
 
         composable(
