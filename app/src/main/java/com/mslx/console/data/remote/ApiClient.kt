@@ -50,6 +50,27 @@ object ApiClient {
             .create(MslJavaApi::class.java)
     }
 
+    /** 构建 MSLAPI v4 服务端核心接口客户端(无需认证)。 */
+    fun buildMslServerCoreApi(): MslServerCoreApi {
+        val client = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                val request = chain.request().newBuilder()
+                    .addHeader("User-Agent", "MSLX-Android/1.2.3")
+                    .build()
+                chain.proceed(request)
+            }
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .build()
+
+        return Retrofit.Builder()
+            .baseUrl("https://api.mslmc.cn/v4/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(MslServerCoreApi::class.java)
+    }
+
     /** 构建 Microsoft OpenJDK GitHub API 客户端(无需认证)。 */
     fun buildMicrosoftJavaApi(): MicrosoftJavaApi {
         val client = OkHttpClient.Builder()

@@ -3,6 +3,9 @@ package com.mslx.console.data.remote
 import com.mslx.console.data.model.ActionRequest
 import com.mslx.console.data.model.ApiResponse
 import com.mslx.console.data.model.AdminCreateUserRequest
+import com.mslx.console.data.model.CancelCreationRequest
+import com.mslx.console.data.model.CreateServerData
+import com.mslx.console.data.model.CreateServerRequest
 import com.mslx.console.data.model.AdminUpdateUserRequest
 import com.mslx.console.data.model.FrpSummary
 import com.mslx.console.data.model.InstanceInfo
@@ -45,6 +48,12 @@ interface MslxApi {
 
     @POST("api/instance/action")
     suspend fun action(@Body body: ActionRequest): ApiResponse<Any?>
+
+    @POST("api/instance/createServer")
+    suspend fun createServer(@Body body: CreateServerRequest): ApiResponse<CreateServerData>
+
+    @POST("api/instance/cancelCreation")
+    suspend fun cancelCreation(@Body body: CancelCreationRequest): ApiResponse<Any?>
 
     @GET("api/instance/settings/general/{id}")
     suspend fun instanceSettings(@Path("id") id: Long): ApiResponse<ServerSettings>
@@ -123,6 +132,9 @@ interface MslxApi {
         @Path("uploadId") uploadId: String,
         @Body body: UploadFinishRequest,
     ): ApiResponse<Any?>
+
+    @POST("api/files/upload/delete/{uploadId}")
+    suspend fun deleteUpload(@Path("uploadId") uploadId: String): ApiResponse<Any?>
 
     @POST("api/files/instance/{id}/upload")
     suspend fun saveUpload(

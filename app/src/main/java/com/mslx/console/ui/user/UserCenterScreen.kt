@@ -1,6 +1,8 @@
 package com.mslx.console.ui.user
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -77,7 +79,12 @@ fun UserCenterScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("用户中心") },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        UserAvatar(user = state.user, size = 30)
+                        Text("用户中心", modifier = Modifier.padding(start = 10.dp))
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
@@ -202,6 +209,31 @@ fun UserCenterScreen(
             },
             dismissButton = { TextButton(onClick = { deletingUser = null }) { Text("取消") } },
         )
+    }
+}
+
+@Composable
+private fun UserAvatar(user: UserInfo?, size: Int) {
+    val dimen = size.dp
+    if (!user?.avatar.isNullOrBlank()) {
+        AsyncImage(
+            model = user!!.avatar,
+            contentDescription = "头像",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.size(dimen).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
+        )
+    } else {
+        Box(
+            modifier = Modifier.size(dimen).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = (user?.name ?: user?.username ?: "?").take(1),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        }
     }
 }
 

@@ -15,6 +15,7 @@ import androidx.navigation.navArgument
 import com.mslx.console.data.AppSettings
 import com.mslx.console.ui.connect.ConnectScreen
 import com.mslx.console.ui.console.ConsoleScreen
+import com.mslx.console.ui.create.CreateInstanceScreen
 import com.mslx.console.ui.instances.InstancesScreen
 import com.mslx.console.ui.settings.InstanceSettingsScreen
 import com.mslx.console.ui.settings.PluginsModsScreen
@@ -23,23 +24,6 @@ import com.mslx.console.ui.settings.SettingsScreen
 import com.mslx.console.ui.splash.SplashScreen
 import com.mslx.console.ui.user.UserCenterScreen
 import com.mslx.console.ui.welcome.WelcomeScreen
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 
 object Routes {
     const val SPLASH = "splash"
@@ -62,7 +46,6 @@ object Routes {
     fun serverProps(instanceId: Long): String = "serverProps/$instanceId"
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavHost(
     settings: AppSettings,
@@ -153,20 +136,13 @@ fun AppNavHost(
         }
 
         composable(Routes.NEW_INSTANCE) {
-            Scaffold(
-                topBar = { androidx.compose.material3.TopAppBar(title = { Text("新建实例") }) },
-                bottomBar = {
-                    NavigationBar {
-                        NavigationBarItem(selected = false, onClick = { navigateTopLevel(Routes.INSTANCES) }, icon = { Icon(Icons.Filled.List, null) }, label = { Text("实例") })
-                        NavigationBarItem(selected = true, onClick = {}, icon = { Icon(Icons.Filled.Add, null) }, label = { Text("新建") })
-                        NavigationBarItem(selected = false, onClick = { navigateTopLevel(Routes.SETTINGS) }, icon = { Icon(Icons.Filled.Settings, null) }, label = { Text("设置") })
-                    }
+            CreateInstanceScreen(
+                onOpenInstances = { navigateTopLevel(Routes.INSTANCES) },
+                onOpenSettings = { navigateTopLevel(Routes.SETTINGS) },
+                onOpenConsole = { id ->
+                    navController.navigate(Routes.console(id)) { launchSingleTop = true }
                 },
-            ) { padding ->
-                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    Text("新建实例功能暂未开放")
-                }
-            }
+            )
         }
 
         composable(Routes.SETTINGS) {

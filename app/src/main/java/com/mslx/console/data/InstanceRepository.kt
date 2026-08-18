@@ -1,7 +1,12 @@
 package com.mslx.console.data
 
 import com.mslx.console.data.model.ActionRequest
+import com.mslx.console.data.model.CancelCreationRequest
 import com.mslx.console.data.model.CommandResultPayload
+import com.mslx.console.data.model.CreateServerRequest
+import com.mslx.console.data.model.ServerCoreClassify
+import com.mslx.console.data.model.ServerCoreDownloadInfo
+import com.mslx.console.data.model.ServerCoreGameVersion
 import com.mslx.console.data.model.AdminCreateUserRequest
 import com.mslx.console.data.model.AdminUpdateUserRequest
 import com.mslx.console.data.model.FrpSummary
@@ -18,6 +23,9 @@ import com.mslx.console.data.model.UploadFinishRequest
 import com.mslx.console.data.model.UpdateSelfRequest
 import com.mslx.console.data.model.UpdateSettingsData
 import com.mslx.console.data.model.UserInfo
+import com.google.gson.Gson
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
 import com.mslx.console.data.remote.ApiClient
 import com.mslx.console.data.remote.ConsoleHubClient
 import com.mslx.console.data.remote.MslxApi
@@ -110,6 +118,64 @@ class InstanceRepository {
         val resp = requireApi().instanceInfo(id)
         if (resp.code != 200) throw IllegalStateException(resp.message ?: "获取实例信息失败")
         resp.data ?: throw IllegalStateException("返回数据为空")
+    }
+
+    suspend fun createInstance(request: CreateServerRequest): Result<String> = runCatching {
+        val resp = requireApi().createServer(request)
+        if (resp.code != 200) throw IllegalStateException(resp.message ?: "创建失败")
+        resp.data?.serverId?.takeIf { it.isNotBlank() }
+            ?: throw IllegalStateException("服务器未返回 ServerId")
+    }
+
+    suspend fun cancelCreation(serverId: String): Result<String> = runCatching {
+        val resp = requireApi().cancelCreation(CancelCreationRequest(serverId))
+        if (resp.code != 200) throw IllegalStateException(resp.message ?: "取消失败")
+        resp.message ?: "取消信号已发送"
+    }
+
+    suspend fun deleteUpload(uploadId: String): Result<Unit> = runCatching {
+        requireApi().deleteUpload(uploadId)
+    }
+
+    /** 上传一个文件并返回可用于 createServer 的 fileKey(uploadId)。 */
+    suspend fun uploadCoreFile(bytes: ByteArray, onProgress: (Int) -> Unit): Result<String> = runCatching {
+        val uploadId = uploadInit().getOrThrow()
+        val chunkSize = 10 * 1024 * 1024
+        val total = if (bytes.isEmpty()) 1 else ((bytes.size + chunkSize - 1) / chunkSize)
+        for (i in 0 until total) {
+            val start = i * chunkSize
+            val end = minOf(bytes.size, start + chunkSize)
+            uploadChunk(uploadId, i, bytes.copyOfRange(start, end)).getOrThrow()
+            onProgress(((i + 1) * 100 / total).coerceIn(0, 100))
+        }
+        uploadFinish(uploadId, total).getOrThrow()
+        uploadId
+    }
+
+    suspend fun serverCoreClassify(): Result<ServerCoreClassify> = runCatching {
+        val element = ApiClient.buildMslServerCoreApi().classify()
+        val obj: JsonObject = when {
+            element.isJsonObject -> element.asJsonObject
+            element.isJsonArray -> {
+                val arr = element as JsonArray
+                if (arr.size() == 0) throw IllegalStateException("返回分类为空")
+                arr.get(0).asJsonObject
+            }
+            else -> throw IllegalStateException("返回分类格式错误")
+        }
+        Gson().fromJson(obj, ServerCoreClassify::class.java)
+    }
+
+    suspend fun serverCoreGameVersion(name: String): Result<ServerCoreGameVersion> = runCatching {
+        ApiClient.buildMslServerCoreApi().gameVersion(name)
+    }
+
+    suspend fun serverCoreBuilds(name: String, version: String): Result<List<String>> = runCatching {
+        ApiClient.buildMslServerCoreApi().builds(name, version).orEmpty()
+    }
+
+    suspend fun serverCoreDownloadInfo(name: String, version: String, build: String = "latest"): Result<ServerCoreDownloadInfo> = runCatching {
+        ApiClient.buildMslServerCoreApi().downloadInfo(name, version, build)
     }
 
     suspend fun sendAction(id: Long, action: String): Result<String> = runCatching {
