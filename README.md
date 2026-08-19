@@ -1,5 +1,8 @@
 # MSLX 控制台(Android)
 
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![Android CI](https://github.com/WLudy1012/MSLX-Android/actions/workflows/android.yml/badge.svg)](https://github.com/WLudy1012/MSLX-Android/actions/workflows/android.yml)
+
 MSLX 守护程序(MSLX Daemon)的手机安卓端控制台。基于 **Kotlin + Jetpack Compose** 构建，
 复刻了 MSLX Desktop 版"连接守护程序 → 管理实例"的核心能力,并针对手机触屏重新设计了操作流程。
 
@@ -68,3 +71,29 @@ app/src/main/java/com/mslx/console/
   `AndroidManifest.xml` 中将 `android:usesCleartextTraffic` 改为 `false` 以增强安全性。
 - API 契约与 Desktop 版一致:`x-api-key` 请求头认证、`GET /api/instance/list`、
   `POST /api/instance/action`、SignalR `/api/hubs/instanceControlHub`。
+
+## 📜 开源协议
+
+本项目基于 [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE) 开源，
+与上游 [MSLX](https://github.com/MSLTeam/MSLX) 保持一致的 AGPL-3.0 协议。
+
+Copyright (C) 2026 WLudy1012
+
+## 🤖 持续集成 (GitHub Actions)
+
+- **android.yml**：`main` 分支 push / PR 时自动构建 debug 与 release(未签名)APK，并上传 debug APK 工件。
+- **release.yml**：推送 `v*` 标签时，使用仓库 Secrets 恢复签名密钥，构建签名 release APK 并自动附加到对应 Release。
+
+### release.yml 所需 Secrets
+
+在仓库 `Settings → Secrets and variables → Actions` 配置：
+
+| Secret | 说明 |
+| --- | --- |
+| `KEYSTORE_BASE64` | 对 `.jks` 密钥库执行 `base64` 编码后的内容 |
+| `KEYSTORE_PASSWORD` | 密钥库密码 |
+| `KEY_ALIAS` | 密钥别名 |
+| `KEY_PASSWORD` | 密钥密码 |
+
+> Windows 生成 `KEYSTORE_BASE64`：
+> `[Convert]::ToBase64String([IO.File]::ReadAllBytes('keystore\mslx-release.jks'))`
