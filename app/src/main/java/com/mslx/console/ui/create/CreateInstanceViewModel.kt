@@ -28,9 +28,43 @@ data class CreationLog(
     val isError: Boolean = false,
 )
 
+data class WizardStep(val key: String, val title: String)
+
+fun wizardSteps(mode: Int): List<WizardStep> = when (mode) {
+    2 -> listOf(
+        WizardStep("basic", "基本信息"),
+        WizardStep("package", "整合包"),
+        WizardStep("java", "Java 环境"),
+        WizardStep("resource", "资源配置"),
+        WizardStep("confirm", "确认"),
+    )
+    3 -> listOf(
+        WizardStep("basic", "基本信息"),
+        WizardStep("core", "核心文件"),
+        WizardStep("resource", "资源配置"),
+        WizardStep("confirm", "确认"),
+    )
+    4 -> listOf(
+        WizardStep("basic", "基本信息"),
+        WizardStep("core", "核心文件"),
+        WizardStep("java", "Java 环境"),
+        WizardStep("mcdr", "MCDR"),
+        WizardStep("resource", "资源配置"),
+        WizardStep("confirm", "确认"),
+    )
+    else -> listOf(
+        WizardStep("basic", "基本信息"),
+        WizardStep("core", "核心文件"),
+        WizardStep("java", "Java 环境"),
+        WizardStep("resource", "资源配置"),
+        WizardStep("confirm", "确认"),
+    )
+}
+
 data class CreateInstanceUiState(
     // 模式: 1 快速 / 2 整合包 / 3 基岩版 / 4 MCDR / 10 自定义
     val mode: Int = 1,
+    val step: Int = 0,
     // 基础
     val name: String = "新建服务器",
     val path: String = "",
@@ -114,7 +148,42 @@ class CreateInstanceViewModel(application: Application) : AndroidViewModel(appli
     }
 
     fun setMode(mode: Int) {
-        _state.update { it.copy(mode = mode) }
+        _state.update { it.copy(mode = mode, step = 0) }
+    }
+
+    fun nextStep() {
+        val s = _state.value
+        val steps = wizardSteps(s.mode)
+        val key = steps.getOrNull(s.step)?.key
+        when (key) {
+            "basic" -> if (s.name.isBlank()) {
+                _message.tryEmit("请填写实例名称"); return
+            }
+            "core" -> {
+                if (s.mode == 3) {
+                    if (s.coreFileKey.isBlank() && s.coreUrl.isBlank()) {
+                        _message.tryEmit("请上传或选择基岩版核心"); return
+                    }
+                } else if (s.core.isBlank()) {
+                    _message.tryEmit("请配置服务端核心"); return
+                }
+            }
+            "package" -> if (s.packageFileKey.isBlank() && s.packageUrl.isBlank() && s.packageLocalPath.isBlank()) {
+                _message.tryEmit("请提供整合包（上传 / 地址 / 本机路径）"); return
+            }
+            "java" -> if (computedJava().isBlank()) {
+                _message.tryEmit("请配置 Java 环境"); return
+            }
+        }
+        if (s.step < steps.size - 1) {
+            _state.update { it.copy(step = it.step + 1) }
+        }
+    }
+
+    fun prevStep() {
+        if (_state.value.step > 0) {
+            _state.update { it.copy(step = it.step - 1) }
+        }
     }
 
     fun loadJavaOptions() {

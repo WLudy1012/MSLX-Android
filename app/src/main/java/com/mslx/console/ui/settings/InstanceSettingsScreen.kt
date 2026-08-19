@@ -16,6 +16,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -33,7 +37,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -136,6 +142,9 @@ fun InstanceSettingsScreen(
 
             else -> {
                 val s = state.settings!!
+                val javaType = parseJavaType(s.java, s.dockerImage, s.args, state.localJavas)
+                val isDocker = javaType == JavaType.DOCKER_JAVA || javaType == JavaType.DOCKER_CUSTOM ||
+                    javaType == JavaType.MCDR_DOCKER_JAVA || javaType == JavaType.MCDR_DOCKER_CUSTOM
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
@@ -274,17 +283,17 @@ fun InstanceSettingsScreen(
                     // 编码
                     item { SectionTitle("编码") }
                     item {
-                        ChipSetting("输入编码", listOf("utf-8", "gbk"), s.inputEncoding) { v ->
+                        DropdownSetting("输入编码", listOf("utf-8", "gbk"), s.inputEncoding) { v ->
                             viewModel.update { it.copy(inputEncoding = v) }
                         }
                     }
                     item {
-                        ChipSetting("输出编码", listOf("utf-8", "gbk"), s.outputEncoding) { v ->
+                        DropdownSetting("输出编码", listOf("utf-8", "gbk"), s.outputEncoding) { v ->
                             viewModel.update { it.copy(outputEncoding = v) }
                         }
                     }
                     item {
-                        ChipSetting("文件编码", listOf("utf-8", "utf-8-bom", "gbk"), s.fileEncoding) { v ->
+                        DropdownSetting("文件编码", listOf("utf-8", "utf-8-bom", "gbk"), s.fileEncoding) { v ->
                             viewModel.update { it.copy(fileEncoding = v) }
                         }
                     }
@@ -343,86 +352,88 @@ fun InstanceSettingsScreen(
                         }
                     }
 
-                    // Docker
-                    item { SectionTitle("Docker 运行配置") }
-                    item {
-                        TextSetting("镜像", s.dockerImage) { v ->
-                            viewModel.update { it.copy(dockerImage = v) }
-                        }
-                    }
-                    item {
-                        TextSetting("工作目录", s.dockerWorkingDir) { v ->
-                            viewModel.update { it.copy(dockerWorkingDir = v) }
-                        }
-                    }
-                    item {
-                        TextSetting("端口映射", s.dockerPorts, placeholder = "宿主机端口:容器端口") { v ->
-                            viewModel.update { it.copy(dockerPorts = v) }
-                        }
-                    }
-                    item {
-                        TextSetting("网络模式", s.dockerNetworkMode, placeholder = "bridge / host / none") { v ->
-                            viewModel.update { it.copy(dockerNetworkMode = v) }
-                        }
-                    }
-                    item {
-                        TextSetting("网络别名", s.dockerNetworkAlias) { v ->
-                            viewModel.update { it.copy(dockerNetworkAlias = v.ifBlank { null }) }
-                        }
-                    }
-                    item {
-                        TextSetting("挂载卷", s.dockerVolumes, placeholder = "/宿主机:/容器,多个用逗号") { v ->
-                            viewModel.update { it.copy(dockerVolumes = v.ifBlank { null }) }
-                        }
-                    }
-                    item {
-                        TextSetting("环境变量", s.dockerEnvVars, placeholder = "KEY=VALUE,多个用逗号") { v ->
-                            viewModel.update { it.copy(dockerEnvVars = v.ifBlank { null }) }
-                        }
-                    }
-                    item {
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            NumberSetting("CPU 限制 %", s.dockerCpuPercentage, Modifier.weight(1f)) { v ->
-                                viewModel.update { it.copy(dockerCpuPercentage = v) }
-                            }
-                            TextSetting("指定 CPU 核心", s.dockerCpuCores, Modifier.weight(1f), placeholder = "0,1 或 0-3") { v ->
-                                viewModel.update { it.copy(dockerCpuCores = v.ifBlank { null }) }
+                    // Docker（仅当启动方式为 Docker 时显示）
+                    if (isDocker) {
+                        item { SectionTitle("Docker 运行配置") }
+                        item {
+                            TextSetting("镜像", s.dockerImage) { v ->
+                                viewModel.update { it.copy(dockerImage = v) }
                             }
                         }
-                    }
-                    item {
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            NumberSetting("最大内存 MB", s.dockerMaxMemoryMb, Modifier.weight(1f)) { v ->
-                                viewModel.update { it.copy(dockerMaxMemoryMb = v) }
-                            }
-                            NumberSetting("最大交换 MB", s.dockerMaxSwapMb, Modifier.weight(1f)) { v ->
-                                viewModel.update { it.copy(dockerMaxSwapMb = v) }
+                        item {
+                            TextSetting("工作目录", s.dockerWorkingDir) { v ->
+                                viewModel.update { it.copy(dockerWorkingDir = v) }
                             }
                         }
-                    }
-                    item {
-                        TextSetting("磁盘限制", s.dockerMaxStorage, placeholder = "如 10g 或 500m") { v ->
-                            viewModel.update { it.copy(dockerMaxStorage = v.ifBlank { null }) }
-                        }
-                    }
-                    item {
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            TextSetting("上传限速", s.dockerUploadRate, Modifier.weight(1f), placeholder = "如 1mb") { v ->
-                                viewModel.update { it.copy(dockerUploadRate = v.ifBlank { null }) }
-                            }
-                            TextSetting("下载限速", s.dockerDownloadRate, Modifier.weight(1f), placeholder = "如 1mb") { v ->
-                                viewModel.update { it.copy(dockerDownloadRate = v.ifBlank { null }) }
+                        item {
+                            TextSetting("端口映射", s.dockerPorts, placeholder = "宿主机端口:容器端口") { v ->
+                                viewModel.update { it.copy(dockerPorts = v) }
                             }
                         }
-                    }
-                    item {
-                        TextSetting("额外参数", s.dockerExtraArgs, placeholder = "docker run 原生参数") { v ->
-                            viewModel.update { it.copy(dockerExtraArgs = v.ifBlank { null }) }
+                        item {
+                            DropdownSetting("网络模式", listOf("bridge", "host", "none"), s.dockerNetworkMode) { v ->
+                                viewModel.update { it.copy(dockerNetworkMode = v) }
+                            }
                         }
-                    }
-                    item {
-                        TextSetting("额外 Hosts", s.dockerExtraHosts, placeholder = "host.mslx.internal:host-gateway") { v ->
-                            viewModel.update { it.copy(dockerExtraHosts = v.ifBlank { null }) }
+                        item {
+                            TextSetting("网络别名", s.dockerNetworkAlias) { v ->
+                                viewModel.update { it.copy(dockerNetworkAlias = v.ifBlank { null }) }
+                            }
+                        }
+                        item {
+                            TextSetting("挂载卷", s.dockerVolumes, placeholder = "/宿主机:/容器,多个用逗号") { v ->
+                                viewModel.update { it.copy(dockerVolumes = v.ifBlank { null }) }
+                            }
+                        }
+                        item {
+                            TextSetting("环境变量", s.dockerEnvVars, placeholder = "KEY=VALUE,多个用逗号") { v ->
+                                viewModel.update { it.copy(dockerEnvVars = v.ifBlank { null }) }
+                            }
+                        }
+                        item {
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                NumberSetting("CPU 限制 %", s.dockerCpuPercentage, Modifier.weight(1f)) { v ->
+                                    viewModel.update { it.copy(dockerCpuPercentage = v) }
+                                }
+                                TextSetting("指定 CPU 核心", s.dockerCpuCores, Modifier.weight(1f), placeholder = "0,1 或 0-3") { v ->
+                                    viewModel.update { it.copy(dockerCpuCores = v.ifBlank { null }) }
+                                }
+                            }
+                        }
+                        item {
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                NumberSetting("最大内存 MB", s.dockerMaxMemoryMb, Modifier.weight(1f)) { v ->
+                                    viewModel.update { it.copy(dockerMaxMemoryMb = v) }
+                                }
+                                NumberSetting("最大交换 MB", s.dockerMaxSwapMb, Modifier.weight(1f)) { v ->
+                                    viewModel.update { it.copy(dockerMaxSwapMb = v) }
+                                }
+                            }
+                        }
+                        item {
+                            TextSetting("磁盘限制", s.dockerMaxStorage, placeholder = "如 10g 或 500m") { v ->
+                                viewModel.update { it.copy(dockerMaxStorage = v.ifBlank { null }) }
+                            }
+                        }
+                        item {
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                TextSetting("上传限速", s.dockerUploadRate, Modifier.weight(1f), placeholder = "如 1mb") { v ->
+                                    viewModel.update { it.copy(dockerUploadRate = v.ifBlank { null }) }
+                                }
+                                TextSetting("下载限速", s.dockerDownloadRate, Modifier.weight(1f), placeholder = "如 1mb") { v ->
+                                    viewModel.update { it.copy(dockerDownloadRate = v.ifBlank { null }) }
+                                }
+                            }
+                        }
+                        item {
+                            TextSetting("额外参数", s.dockerExtraArgs, placeholder = "docker run 原生参数") { v ->
+                                viewModel.update { it.copy(dockerExtraArgs = v.ifBlank { null }) }
+                            }
+                        }
+                        item {
+                            TextSetting("额外 Hosts", s.dockerExtraHosts, placeholder = "host.mslx.internal:host-gateway") { v ->
+                                viewModel.update { it.copy(dockerExtraHosts = v.ifBlank { null }) }
+                            }
                         }
                     }
                 }
@@ -521,6 +532,48 @@ private fun ChipSetting(
                     selected = selected == option,
                     onClick = { onSelect(option) },
                     label = { Text(option) },
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DropdownSetting(
+    label: String,
+    options: List<String>,
+    selected: String?,
+    onSelect: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+    ) {
+        OutlinedTextField(
+            value = selected.orEmpty(),
+            onValueChange = {},
+            readOnly = true,
+            singleLine = true,
+            label = { Text(label) },
+            shape = RoundedCornerShape(12.dp),
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = {
+                        onSelect(option)
+                        expanded = false
+                    },
                 )
             }
         }

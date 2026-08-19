@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -131,6 +132,8 @@ fun CreateInstanceScreen(
             else -> FormContent(
                 state = state,
                 onUpdate = viewModel::update,
+                onNext = viewModel::nextStep,
+                onPrev = viewModel::prevStep,
                 onOpenCoreSelector = viewModel::openCoreSelector,
                 onClearCore = viewModel::clearCoreSelection,
                 onRemoveUpload = viewModel::removeUploadedCore,
@@ -175,6 +178,8 @@ private val MODES = listOf(
 private fun FormContent(
     state: CreateInstanceUiState,
     onUpdate: ((CreateInstanceUiState) -> CreateInstanceUiState) -> Unit,
+    onNext: () -> Unit,
+    onPrev: () -> Unit,
     onOpenCoreSelector: () -> Unit,
     onClearCore: () -> Unit,
     onRemoveUpload: () -> Unit,
@@ -183,245 +188,349 @@ private fun FormContent(
     onSubmit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var minUnit by remember { mutableStateOf("GB") }
-    var maxUnit by remember { mutableStateOf("GB") }
-    val isBedrock = state.mode == 3
-
-    Column(modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    val steps = wizardSteps(state.mode)
+    val current = steps.getOrNull(state.step)
+    Column(modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
         // 模式选择
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MODES.forEach { (value, label) ->
                 FilterChip(selected = state.mode == value, onClick = { onUpdate { it.copy(mode = value) } }, label = { Text(label) })
             }
         }
+        Spacer(Modifier.height(12.dp))
+        StepIndicator(steps, state.step)
+        Spacer(Modifier.height(12.dp))
 
-        // 基本信息
-        SectionCard("基本信息") {
-            OutlinedTextField(
-                value = state.name,
-                onValueChange = { v -> onUpdate { it.copy(name = v) } },
-                label = { Text("实例名称") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = state.path,
-                onValueChange = { v -> onUpdate { it.copy(path = v) } },
-                label = { Text("实例路径（选填，留空使用默认）") },
-                placeholder = { Text("例如: D:\\MyServer") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            when (current?.key) {
+                "basic" -> BasicStep(state, onUpdate)
+                "core" -> CoreStep(state, onUpdate, onOpenCoreSelector, onClearCore, onRemoveUpload, onPickJar)
+                "package" -> PackageStep(state, onUpdate, onOpenCoreSelector, onClearCore, onPickPackage)
+                "java" -> JavaStep(state, onUpdate)
+                "mcdr" -> McdrStep(state, onUpdate)
+                "resource" -> ResourceStep(state, onUpdate)
+                "confirm" -> ConfirmStep(state)
+            }
         }
 
-        // 核心
-        if (state.mode == 2) {
-            SectionCard("整合包") {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("upload" to "本地上传", "url" to "远程下载", "local" to "本机路径").forEach { (value, label) ->
-                        FilterChip(selected = state.packageType == value, onClick = { onUpdate { it.copy(packageType = value) } }, label = { Text(label) })
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (state.step > 0) {
+                OutlinedButton(onClick = onPrev, modifier = Modifier.weight(1f)) { Text("上一步") }
+            }
+            if (current?.key == "confirm") {
+                Button(onClick = onSubmit, enabled = !state.submitting, modifier = Modifier.weight(1f)) {
+                    if (state.submitting) {
+                        CircularProgressIndicator(modifier = Modifier.padding(end = 8.dp), strokeWidth = 2.dp)
                     }
+                    Text(if (state.submitting) "提交中..." else "确认创建", fontWeight = FontWeight.SemiBold)
                 }
-                Spacer(Modifier.height(8.dp))
-                when (state.packageType) {
-                    "upload" -> UploadRow(
-                        uploading = state.uploading,
-                        progress = state.uploadProgress,
-                        fileName = state.uploadedFileName,
-                        hasKey = state.packageFileKey.isNotBlank(),
-                        onPick = onPickPackage,
-                        onRemove = { onUpdate { it.copy(packageFileKey = "") } },
-                    )
-                    "url" -> OutlinedTextField(
-                        value = state.packageUrl,
-                        onValueChange = { v -> onUpdate { it.copy(packageUrl = v) } },
-                        label = { Text("整合包下载地址（.zip/.mrpack）") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    else -> OutlinedTextField(
-                        value = state.packageLocalPath,
-                        onValueChange = { v -> onUpdate { it.copy(packageLocalPath = v) } },
-                        label = { Text("本机绝对路径") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-                Spacer(Modifier.height(8.dp))
-                Text("可选：同时下载服务端核心", style = MaterialTheme.typography.labelLarge)
-                Spacer(Modifier.height(6.dp))
+            } else {
+                Button(onClick = onNext, modifier = Modifier.weight(1f)) { Text("下一步") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StepIndicator(steps: List<WizardStep>, current: Int) {
+    Column {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("步骤 ${current + 1} / ${steps.size}", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+            Text(steps.getOrNull(current)?.title.orEmpty(), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+        }
+        Spacer(Modifier.height(6.dp))
+        LinearProgressIndicator(progress = { (current + 1).toFloat() / steps.size }, modifier = Modifier.fillMaxWidth())
+    }
+}
+
+@Composable
+private fun BasicStep(state: CreateInstanceUiState, onUpdate: ((CreateInstanceUiState) -> CreateInstanceUiState) -> Unit) {
+    SectionCard("基本信息") {
+        OutlinedTextField(
+            value = state.name,
+            onValueChange = { v -> onUpdate { it.copy(name = v) } },
+            label = { Text("实例名称") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = state.path,
+            onValueChange = { v -> onUpdate { it.copy(path = v) } },
+            label = { Text("实例路径（选填，留空使用默认）") },
+            placeholder = { Text("例如: D:\\MyServer") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CoreStep(
+    state: CreateInstanceUiState,
+    onUpdate: ((CreateInstanceUiState) -> CreateInstanceUiState) -> Unit,
+    onOpenCoreSelector: () -> Unit,
+    onClearCore: () -> Unit,
+    onRemoveUpload: () -> Unit,
+    onPickJar: () -> Unit,
+) {
+    SectionCard("服务端核心") {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("online" to "在线下载", "manual" to "本地上传", "custom" to "自定义文件名").forEach { (value, label) ->
+                FilterChip(selected = state.downloadType == value, onClick = { onUpdate { it.copy(downloadType = value) } }, label = { Text(label) })
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        when (state.downloadType) {
+            "online" -> {
                 if (state.core.isNotBlank()) {
                     SelectedCoreCard(state.core, onClearCore)
                 } else {
                     OutlinedButton(onClick = onOpenCoreSelector, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Filled.Build, null)
-                        Text("选择服务端核心")
+                        Text("点击打开服务端核心选择库")
                     }
                 }
             }
-        } else {
-            SectionCard("服务端核心") {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("online" to "在线下载", "manual" to "本地上传", "custom" to "自定义文件名").forEach { (value, label) ->
-                        FilterChip(selected = state.downloadType == value, onClick = { onUpdate { it.copy(downloadType = value) } }, label = { Text(label) })
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-                when (state.downloadType) {
-                    "online" -> {
-                        if (state.core.isNotBlank()) {
-                            SelectedCoreCard(state.core, onClearCore)
-                        } else {
-                            OutlinedButton(onClick = onOpenCoreSelector, modifier = Modifier.fillMaxWidth()) {
-                                Icon(Icons.Filled.Build, null)
-                                Text("点击打开服务端核心选择库")
-                            }
-                        }
-                    }
-                    "manual" -> UploadRow(
-                        uploading = state.uploading,
-                        progress = state.uploadProgress,
-                        fileName = state.uploadedFileName,
-                        hasKey = state.coreFileKey.isNotBlank(),
-                        onPick = onPickJar,
-                        onRemove = onRemoveUpload,
-                    )
-                    else -> OutlinedTextField(
-                        value = state.core,
-                        onValueChange = { v -> onUpdate { it.copy(core = v) } },
-                        label = { Text("核心文件名") },
-                        placeholder = { Text("例如: server.jar") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            }
-        }
-
-        // Java
-        if (!isBedrock) {
-            SectionCard("Java 环境") {
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("online" to "在线下载", "local" to "电脑上的 Java", "env" to "环境变量", "custom" to "自定义路径", "docker" to "Docker").forEach { (value, label) ->
-                        FilterChip(selected = state.javaType == value, onClick = { onUpdate { it.copy(javaType = value) } }, label = { Text(label) })
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-                when (state.javaType) {
-                    "online" -> {
-                        Text("Java 版本", style = MaterialTheme.typography.labelLarge)
-                        Spacer(Modifier.height(4.dp))
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            state.onlineJavaVersions.forEach { version ->
-                                FilterChip(selected = state.selectedJavaVersion == version, onClick = { onUpdate { it.copy(selectedJavaVersion = version) } }, label = { Text("Java $version") })
-                            }
-                        }
-                    }
-                    "local" -> {
-                        Text("选择已安装的 Java", style = MaterialTheme.typography.labelLarge)
-                        Spacer(Modifier.height(4.dp))
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            state.localJavas.forEach { java ->
-                                val label = "Java ${java.version} (${java.vendor ?: "未知"})"
-                                FilterChip(selected = state.customJavaPath == java.path, onClick = { onUpdate { it.copy(customJavaPath = java.path) } }, label = { Text(label) })
-                            }
-                        }
-                    }
-                    "env" -> Text("将使用系统环境变量中的 java 命令", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    "custom" -> OutlinedTextField(
-                        value = state.customJavaPath,
-                        onValueChange = { v -> onUpdate { it.copy(customJavaPath = v) } },
-                        label = { Text("Java 可执行文件路径") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    "docker" -> {
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf("preset" to "MSLX 官方镜像", "custom" to "自定义镜像").forEach { (value, label) ->
-                                FilterChip(selected = state.dockerImageType == value, onClick = { onUpdate { it.copy(dockerImageType = value) } }, label = { Text(label) })
-                            }
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        if (state.dockerImageType == "preset") {
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                listOf("25", "21", "17", "11", "8").forEach { version ->
-                                    FilterChip(selected = state.dockerImagePresetVersion == version, onClick = { onUpdate { it.copy(dockerImagePresetVersion = version) } }, label = { Text("Java $version") })
-                                }
-                            }
-                        } else {
-                            OutlinedTextField(
-                                value = state.dockerCustomImage,
-                                onValueChange = { v -> onUpdate { it.copy(dockerCustomImage = v) } },
-                                label = { Text("自定义镜像") },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // MCDR
-        if (state.mode == 4) {
-            SectionCard("MCDR 配置") {
-                OutlinedTextField(
-                    value = state.mcdrPython,
-                    onValueChange = { v -> onUpdate { it.copy(mcdrPython = v) } },
-                    label = { Text("Python 可执行文件") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = state.mcdrHandler,
-                    onValueChange = { v -> onUpdate { it.copy(mcdrHandler = v) } },
-                    label = { Text("Handler（选填，自动推断）") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Switch(checked = state.mcdrInstall, onCheckedChange = { v -> onUpdate { it.copy(mcdrInstall = v) } })
-                    Text("自动安装 MCDReforged", modifier = Modifier.padding(start = 8.dp))
-                }
-            }
-        }
-
-        // 内存与参数
-        SectionCard("资源配置") {
-            MemoryField("最小内存", state.minM, minUnit, { minUnit = it }, { mb -> onUpdate { it.copy(minM = mb) } })
-            Spacer(Modifier.height(8.dp))
-            MemoryField("最大内存", state.maxM, maxUnit, { maxUnit = it }, { mb -> onUpdate { it.copy(maxM = mb) } })
-            Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = state.args,
-                onValueChange = { v -> onUpdate { it.copy(args = v) } },
-                label = { Text("JVM 启动参数（选填）") },
+            "manual" -> UploadRow(
+                uploading = state.uploading,
+                progress = state.uploadProgress,
+                fileName = state.uploadedFileName,
+                hasKey = state.coreFileKey.isNotBlank(),
+                onPick = onPickJar,
+                onRemove = onRemoveUpload,
+            )
+            else -> OutlinedTextField(
+                value = state.core,
+                onValueChange = { v -> onUpdate { it.copy(core = v) } },
+                label = { Text("核心文件名") },
+                placeholder = { Text("例如: server.jar") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Switch(checked = state.ignoreEula, onCheckedChange = { v -> onUpdate { it.copy(ignoreEula = v) } })
-                Text("自动同意 EULA", modifier = Modifier.padding(start = 8.dp))
-            }
         }
-
-        // 提交
-        Button(
-            onClick = onSubmit,
-            enabled = !state.submitting,
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-        ) {
-            if (state.submitting) {
-                CircularProgressIndicator(modifier = Modifier.padding(end = 8.dp), strokeWidth = 2.dp)
-            }
-            Text(if (state.submitting) "提交中..." else "创建实例", fontWeight = FontWeight.SemiBold)
-        }
-        Spacer(Modifier.height(16.dp))
     }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PackageStep(
+    state: CreateInstanceUiState,
+    onUpdate: ((CreateInstanceUiState) -> CreateInstanceUiState) -> Unit,
+    onOpenCoreSelector: () -> Unit,
+    onClearCore: () -> Unit,
+    onPickPackage: () -> Unit,
+) {
+    SectionCard("整合包") {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("upload" to "本地上传", "url" to "远程下载", "local" to "本机路径").forEach { (value, label) ->
+                FilterChip(selected = state.packageType == value, onClick = { onUpdate { it.copy(packageType = value) } }, label = { Text(label) })
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        when (state.packageType) {
+            "upload" -> UploadRow(
+                uploading = state.uploading,
+                progress = state.uploadProgress,
+                fileName = state.uploadedFileName,
+                hasKey = state.packageFileKey.isNotBlank(),
+                onPick = onPickPackage,
+                onRemove = { onUpdate { it.copy(packageFileKey = "") } },
+            )
+            "url" -> OutlinedTextField(
+                value = state.packageUrl,
+                onValueChange = { v -> onUpdate { it.copy(packageUrl = v) } },
+                label = { Text("整合包下载地址（.zip/.mrpack）") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            else -> OutlinedTextField(
+                value = state.packageLocalPath,
+                onValueChange = { v -> onUpdate { it.copy(packageLocalPath = v) } },
+                label = { Text("本机绝对路径") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        Text("可选：同时下载服务端核心", style = MaterialTheme.typography.labelLarge)
+        Spacer(Modifier.height(6.dp))
+        if (state.core.isNotBlank()) {
+            SelectedCoreCard(state.core, onClearCore)
+        } else {
+            OutlinedButton(onClick = onOpenCoreSelector, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Filled.Build, null)
+                Text("选择服务端核心")
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun JavaStep(state: CreateInstanceUiState, onUpdate: ((CreateInstanceUiState) -> CreateInstanceUiState) -> Unit) {
+    SectionCard("Java 环境") {
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("online" to "在线下载", "local" to "电脑上的 Java", "env" to "环境变量", "custom" to "自定义路径", "docker" to "Docker").forEach { (value, label) ->
+                FilterChip(selected = state.javaType == value, onClick = { onUpdate { it.copy(javaType = value) } }, label = { Text(label) })
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        when (state.javaType) {
+            "online" -> {
+                Text("Java 版本", style = MaterialTheme.typography.labelLarge)
+                Spacer(Modifier.height(4.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    state.onlineJavaVersions.forEach { version ->
+                        FilterChip(selected = state.selectedJavaVersion == version, onClick = { onUpdate { it.copy(selectedJavaVersion = version) } }, label = { Text("Java $version") })
+                    }
+                }
+            }
+            "local" -> {
+                Text("选择已安装的 Java", style = MaterialTheme.typography.labelLarge)
+                Spacer(Modifier.height(4.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    state.localJavas.forEach { java ->
+                        val label = "Java ${java.version} (${java.vendor ?: "未知"})"
+                        FilterChip(selected = state.customJavaPath == java.path, onClick = { onUpdate { it.copy(customJavaPath = java.path) } }, label = { Text(label) })
+                    }
+                }
+            }
+            "env" -> Text("将使用系统环境变量中的 java 命令", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            "custom" -> OutlinedTextField(
+                value = state.customJavaPath,
+                onValueChange = { v -> onUpdate { it.copy(customJavaPath = v) } },
+                label = { Text("Java 可执行文件路径") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            "docker" -> {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("preset" to "MSLX 官方镜像", "custom" to "自定义镜像").forEach { (value, label) ->
+                        FilterChip(selected = state.dockerImageType == value, onClick = { onUpdate { it.copy(dockerImageType = value) } }, label = { Text(label) })
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                if (state.dockerImageType == "preset") {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("25", "21", "17", "11", "8").forEach { version ->
+                            FilterChip(selected = state.dockerImagePresetVersion == version, onClick = { onUpdate { it.copy(dockerImagePresetVersion = version) } }, label = { Text("Java $version") })
+                        }
+                    }
+                } else {
+                    OutlinedTextField(
+                        value = state.dockerCustomImage,
+                        onValueChange = { v -> onUpdate { it.copy(dockerCustomImage = v) } },
+                        label = { Text("自定义镜像") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun McdrStep(state: CreateInstanceUiState, onUpdate: ((CreateInstanceUiState) -> CreateInstanceUiState) -> Unit) {
+    SectionCard("MCDR 配置") {
+        OutlinedTextField(
+            value = state.mcdrPython,
+            onValueChange = { v -> onUpdate { it.copy(mcdrPython = v) } },
+            label = { Text("Python 可执行文件") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = state.mcdrHandler,
+            onValueChange = { v -> onUpdate { it.copy(mcdrHandler = v) } },
+            label = { Text("Handler（选填，自动推断）") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Switch(checked = state.mcdrInstall, onCheckedChange = { v -> onUpdate { it.copy(mcdrInstall = v) } })
+            Text("自动安装 MCDReforged", modifier = Modifier.padding(start = 8.dp))
+        }
+    }
+}
+
+@Composable
+private fun ResourceStep(state: CreateInstanceUiState, onUpdate: ((CreateInstanceUiState) -> CreateInstanceUiState) -> Unit) {
+    var minUnit by remember { mutableStateOf("GB") }
+    var maxUnit by remember { mutableStateOf("GB") }
+    SectionCard("资源配置") {
+        MemoryField("最小内存", state.minM, minUnit, { minUnit = it }, { mb -> onUpdate { it.copy(minM = mb) } })
+        Spacer(Modifier.height(8.dp))
+        MemoryField("最大内存", state.maxM, maxUnit, { maxUnit = it }, { mb -> onUpdate { it.copy(maxM = mb) } })
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = state.args,
+            onValueChange = { v -> onUpdate { it.copy(args = v) } },
+            label = { Text("JVM 启动参数（选填）") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Switch(checked = state.ignoreEula, onCheckedChange = { v -> onUpdate { it.copy(ignoreEula = v) } })
+            Text("自动同意 EULA", modifier = Modifier.padding(start = 8.dp))
+        }
+    }
+}
+
+@Composable
+private fun ConfirmStep(state: CreateInstanceUiState) {
+    SectionCard("确认信息") {
+        SummaryRow("实例名称", state.name)
+        SummaryRow("实例路径", state.path.ifBlank { "默认路径" })
+        if (state.mode == 3) {
+            SummaryRow("服务端核心", state.core.ifBlank { "基岩版核心" })
+        } else {
+            SummaryRow("服务端核心", state.core)
+        }
+        if (state.mode == 2) {
+            val pkg = when {
+                state.packageFileKey.isNotBlank() -> "已上传整合包"
+                state.packageUrl.isNotBlank() -> "远程下载：${state.packageUrl}"
+                state.packageLocalPath.isNotBlank() -> "本机路径：${state.packageLocalPath}"
+                else -> "未配置"
+            }
+            SummaryRow("整合包", pkg)
+        }
+        if (state.mode != 3) {
+            SummaryRow("Java 环境", javaDisplay(state))
+        }
+        if (state.mode == 4) {
+            SummaryRow("MCDR Python", state.mcdrPython)
+        }
+        SummaryRow("最小内存", "${state.minM} MB")
+        SummaryRow("最大内存", "${state.maxM} MB")
+        SummaryRow("EULA", if (state.ignoreEula) "自动同意" else "手动同意")
+        if (state.args.isNotBlank()) {
+            SummaryRow("启动参数", state.args)
+        }
+    }
+}
+
+@Composable
+private fun SummaryRow(label: String, value: String) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
+        Text(label, modifier = Modifier.width(96.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+    }
+}
+
+private fun javaDisplay(state: CreateInstanceUiState): String = when (state.javaType) {
+    "online" -> "在线下载 Java ${state.selectedJavaVersion}"
+    "local", "custom" -> state.customJavaPath.ifBlank { "未指定路径" }
+    "env" -> "环境变量 (java)"
+    "docker" -> if (state.dockerImageType == "preset") "Docker 镜像 Java ${state.dockerImagePresetVersion}" else state.dockerCustomImage.ifBlank { "Docker 自定义镜像" }
+    else -> "未配置"
 }
 
 @OptIn(ExperimentalLayoutApi::class)

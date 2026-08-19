@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import com.mslx.console.data.model.UserInfo
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -215,25 +216,40 @@ fun UserCenterScreen(
 @Composable
 private fun UserAvatar(user: UserInfo?, size: Int) {
     val dimen = size.dp
-    if (!user?.avatar.isNullOrBlank()) {
-        AsyncImage(
-            model = user!!.avatar,
+    val initial = (user?.name ?: user?.username ?: "?").take(1)
+    val avatar = user?.avatar?.takeIf { it.isNotBlank() }
+    if (avatar == null) {
+        LetteredAvatar(initial, dimen)
+    } else {
+        SubcomposeAsyncImage(
+            model = avatar,
             contentDescription = "头像",
             contentScale = ContentScale.Crop,
-            modifier = Modifier.size(dimen).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
+            modifier = Modifier
+                .size(dimen)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            loading = { LetteredAvatar(initial, dimen) },
+            error = { LetteredAvatar(initial, dimen) },
         )
-    } else {
-        Box(
-            modifier = Modifier.size(dimen).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = (user?.name ?: user?.username ?: "?").take(1),
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-        }
+    }
+}
+
+@Composable
+private fun LetteredAvatar(initial: String, dimen: androidx.compose.ui.unit.Dp) {
+    Box(
+        modifier = Modifier
+            .size(dimen)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.primaryContainer),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = initial,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+        )
     }
 }
 
