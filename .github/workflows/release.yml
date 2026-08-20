@@ -41,8 +41,21 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
+          set -e
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Secret KEYSTORE_BASE64 is empty. 请在仓库 Settings → Secrets and variables → Actions 配置该 Secret（值见本地 ACTIONS_GUIDE.md）。"
+            exit 1
+          fi
+          if [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::Secret KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD 不能为空。"
+            exit 1
+          fi
           mkdir -p keystore
-          echo "$KEYSTORE_BASE64" | base64 --decode > keystore/release.jks
+          # 校验 base64 值是否合法（必须是单行、无空格/换行/表格符号的纯 base64）
+          echo "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > keystore/release.jks || {
+            echo "::error::KEYSTORE_BASE64 解码失败。请从 ACTIONS_GUIDE.md 的代码块中整行复制纯 base64 值（不要带空格或 | 符号），重新配置该 Secret。"
+            exit 1
+          }
           cat > keystore.properties <<EOF
           storeFile=keystore/release.jks
           storePassword=$KEYSTORE_PASSWORD
