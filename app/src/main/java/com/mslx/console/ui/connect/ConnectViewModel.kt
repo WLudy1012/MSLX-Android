@@ -107,6 +107,15 @@ class ConnectViewModel(
         if (_state.value.loading) return
         _state.update { it.copy(loading = true, autoChecking = auto, error = null) }
         viewModelScope.launch {
+            val duplicate = store.settingsFlow.first().daemons.any {
+                it.id != config.id &&
+                    it.baseUrl.trimEnd('/').equals(config.baseUrl.trimEnd('/'), ignoreCase = true) &&
+                    it.apiKey == config.apiKey
+            }
+            if (duplicate) {
+                _state.update { it.copy(loading = false, autoChecking = false, error = "同一 API Key 已连接此 Daemon，不能重复添加。") }
+                return@launch
+            }
             val result = runCatching {
                 repository.configure(config.baseUrl, config.apiKey)
                 repository.verify()

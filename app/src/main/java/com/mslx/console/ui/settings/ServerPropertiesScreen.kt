@@ -80,7 +80,7 @@ fun ServerPropertiesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("server.properties") },
+                title = { Text("服务器设置") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
@@ -220,11 +220,15 @@ private fun PropCard(
                 .fillMaxWidth()
                 .padding(14.dp),
         ) {
-            Text(
-                text = prop.label,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(prop.label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                if (prop.type == PropType.BOOLEAN) {
+                    Switch(checked = value == "true", onCheckedChange = { onValueChange(it.toString()) })
+                }
+            }
             if (prop.desc.isNotBlank()) {
                 Spacer(Modifier.padding(top = 2.dp))
                 Text(
@@ -243,12 +247,7 @@ private fun PropCard(
             Spacer(Modifier.padding(top = 8.dp))
 
             when (prop.type) {
-                PropType.BOOLEAN -> {
-                    Switch(
-                        checked = value == "true",
-                        onCheckedChange = { onValueChange(it.toString()) },
-                    )
-                }
+                PropType.BOOLEAN -> Unit
 
                 PropType.SELECT -> SelectDropdown(prop.options, value, onValueChange)
 

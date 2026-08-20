@@ -66,6 +66,16 @@ class PluginsModsViewModel(
         runAction(action, listOf(fileName))
     }
 
+    fun batch(action: String) {
+        val data = _state.value.data ?: return
+        val targets = when (action) {
+            "enable" -> data.disableJarFiles
+            "disable" -> data.jarFiles + data.clientJarFiles
+            else -> emptyList()
+        }
+        if (targets.isNotEmpty()) runAction(action, targets)
+    }
+
     fun delete(fileName: String) = runAction("delete", listOf(fileName))
 
     /** 多线程分片上传插件/模组文件。 */

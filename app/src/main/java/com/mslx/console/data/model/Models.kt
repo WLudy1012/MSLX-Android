@@ -23,12 +23,20 @@ data class StatusData(
     @SerializedName("user") val user: String? = null,
     @SerializedName("username") val username: String? = null,
     @SerializedName("systemInfo") val systemInfo: SystemInfo? = null,
+    @SerializedName("cpuUsage") val cpuUsage: Double? = null,
+    @SerializedName("memoryUsage") val memoryUsage: Double? = null,
+    @SerializedName("memoryUsed") val memoryUsed: Double? = null,
+    @SerializedName("memoryTotal") val memoryTotal: Double? = null,
 )
 
 /** 守护程序所在主机系统信息。 */
 data class SystemInfo(
     @SerializedName("osType") val osType: String? = null,
     @SerializedName("osArchitecture") val osArchitecture: String? = null,
+    @SerializedName("cpuUsage") val cpuUsage: Double? = null,
+    @SerializedName("memoryUsage") val memoryUsage: Double? = null,
+    @SerializedName("memoryUsed") val memoryUsed: Double? = null,
+    @SerializedName("memoryTotal") val memoryTotal: Double? = null,
 )
 
 /** GET /api/java/list 的 data 数组元素(本地 Java 环境)。 */

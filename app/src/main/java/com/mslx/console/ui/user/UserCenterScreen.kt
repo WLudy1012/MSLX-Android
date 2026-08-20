@@ -19,8 +19,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -109,27 +112,34 @@ fun UserCenterScreen(
             )
             else -> {
                 val user = state.user!!
+                val isSystemUser = user.username.equals("MSLX Manger", ignoreCase = true) || user.role.equals("system", ignoreCase = true)
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(innerPadding),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     item {
-                        ProfileCard(user = user, onEdit = { showSelfEditor = true })
+                        ProfileCard(user = user, onEdit = { showSelfEditor = true }, canEdit = !isSystemUser)
                     }
                     item {
                         Text("账号安全", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     }
                     item {
                         Card(shape = RoundedCornerShape(12.dp)) {
+                            val clipboard = LocalClipboardManager.current
                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text("API Key", style = MaterialTheme.typography.labelLarge)
-                                Text(user.apiKey ?: "未返回", style = MaterialTheme.typography.bodySmall)
-                                Text("可在编辑资料时重置 API Key。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(user.apiKey ?: "未返回", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                                    IconButton(enabled = !user.apiKey.isNullOrBlank(), onClick = { clipboard.setText(AnnotatedString(user.apiKey.orEmpty())) }) {
+                                        Icon(Icons.Filled.Settings, contentDescription = "复制 API Key")
+                                    }
+                                }
+                                Text("可复制 API Key 用于连接 Daemon。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
-                    if (user.role.equals("admin", ignoreCase = true)) {
+                    if (user.role.equals("admin", ignoreCase = true) || isSystemUser) {
                         item {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -254,7 +264,7 @@ private fun LetteredAvatar(initial: String, dimen: androidx.compose.ui.unit.Dp) 
 }
 
 @Composable
-private fun ProfileCard(user: UserInfo, onEdit: () -> Unit) {
+private fun ProfileCard(user: UserInfo, onEdit: () -> Unit, canEdit: Boolean) {
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
@@ -276,10 +286,12 @@ private fun ProfileCard(user: UserInfo, onEdit: () -> Unit) {
             }
             Text(user.name ?: user.username ?: "未知用户", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text("@${user.username ?: "unknown"}", color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = .7f))
-            Text("角色：${user.role ?: "user"}", color = MaterialTheme.colorScheme.primary)
-            TextButton(onClick = onEdit) {
-                Icon(Icons.Filled.Edit, contentDescription = null)
-                Text("编辑资料")
+            Text("角色：${if (user.username.equals("MSLX Manger", ignoreCase = true) || user.role.equals("system", ignoreCase = true)) "System" else user.role ?: "user"}", color = MaterialTheme.colorScheme.primary)
+            if (canEdit) {
+                TextButton(onClick = onEdit) {
+                    Icon(Icons.Filled.Edit, contentDescription = null)
+                    Text("编辑资料")
+                }
             }
         }
     }
@@ -291,7 +303,8 @@ private fun ManagedUserCard(user: UserInfo, currentUserId: String?, onEdit: () -
         Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(user.name ?: user.username ?: "未知用户", fontWeight = FontWeight.SemiBold)
-                Text("@${user.username ?: "unknown"} · ${user.role ?: "user"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val roleLabel = if (user.username.equals("MSLX Manger", ignoreCase = true) || user.role.equals("system", ignoreCase = true)) "System" else user.role ?: "user"
+                Text("@${user.username ?: "unknown"} · $roleLabel", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("资源：${user.resources.orEmpty().size}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, contentDescription = "编辑") }

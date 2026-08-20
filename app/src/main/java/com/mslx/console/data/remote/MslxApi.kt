@@ -53,6 +53,12 @@ interface MslxApi {
     @POST("api/instance/createServer")
     suspend fun createServer(@Body body: CreateServerRequest): ApiResponse<CreateServerData>
 
+    @POST("api/instance/delete/{id}")
+    suspend fun deleteInstance(
+        @Path("id") id: Long,
+        @Query("deleteFiles") deleteFiles: Boolean = false,
+    ): ApiResponse<Any?>
+
     @POST("api/instance/cancelCreation")
     suspend fun cancelCreation(@Body body: CancelCreationRequest): ApiResponse<Any?>
 

@@ -158,6 +158,7 @@ class CreateInstanceViewModel(application: Application) : AndroidViewModel(appli
             it.copy(
                 mode = mode,
                 step = 0,
+                selectedCategoryKey = if (mode == 3) "bedrock" else "plugins",
                 core = "",
                 coreUrl = "",
                 coreSha256 = "",
@@ -185,7 +186,7 @@ class CreateInstanceViewModel(application: Application) : AndroidViewModel(appli
             "core" -> {
                 if (s.mode == 3) {
                     if (s.coreFileKey.isBlank() && s.coreUrl.isBlank()) {
-                        _message.tryEmit("请上传或选择基岩版核心"); return
+                        _message.tryEmit("请在线选择、填写远程地址或上传基岩版核心"); return
                     }
                 } else if (s.core.isBlank()) {
                     _message.tryEmit("请配置服务端核心"); return

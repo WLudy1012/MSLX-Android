@@ -4,6 +4,11 @@ import android.app.Application
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -22,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -55,7 +61,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 
-@OptIn(ExperimentalMaterial3Api::class)
+enum class PmFilter { ALL, ENABLED, DISABLED, CLIENT }
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun PluginsModsScreen(
     instanceId: Long,
@@ -72,6 +80,8 @@ fun PluginsModsScreen(
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    var filter by remember { mutableStateOf(PmFilter.ALL) }
+    var showBatchDialog by remember { mutableStateOf(false) }
 
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) viewModel.upload(uri)
@@ -168,16 +178,21 @@ fun PluginsModsScreen(
                             )
                         }
                     } else if (data != null) {
+                        val enabledFiles = if (filter == PmFilter.DISABLED || filter == PmFilter.CLIENT) emptyList() else data.jarFiles
+                        val clientFiles = if (filter == PmFilter.DISABLED || filter == PmFilter.ENABLED) emptyList() else data.clientJarFiles
+                        val disabledFiles = if (filter == PmFilter.ENABLED || filter == PmFilter.CLIENT) emptyList() else data.disableJarFiles
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            item { StatsRow(data) }
+                            item {
+                                StatsRow(data, filter, onFilter = { filter = it }, onLongPress = { showBatchDialog = true })
+                            }
 
-                            if (data.jarFiles.isNotEmpty() || data.clientJarFiles.isNotEmpty()) {
+                            if (enabledFiles.isNotEmpty() || clientFiles.isNotEmpty()) {
                                 item { GroupTitle("已启用") }
-                                items(data.jarFiles) { f ->
+                                items(enabledFiles) { f ->
                                     PmRow(
                                         fileName = f,
                                         subtitle = "已启用",
@@ -187,7 +202,7 @@ fun PluginsModsScreen(
                                         toggleLabel = "禁用",
                                     )
                                 }
-                                items(data.clientJarFiles) { f ->
+                                items(clientFiles) { f ->
                                     PmRow(
                                         fileName = f,
                                         subtitle = "仅客户端",
@@ -199,9 +214,9 @@ fun PluginsModsScreen(
                                 }
                             }
 
-                            if (data.disableJarFiles.isNotEmpty()) {
+                            if (disabledFiles.isNotEmpty()) {
                                 item { GroupTitle("已禁用") }
-                                items(data.disableJarFiles) { f ->
+                                items(disabledFiles) { f ->
                                     PmRow(
                                         fileName = f,
                                         subtitle = "已禁用",
@@ -218,27 +233,44 @@ fun PluginsModsScreen(
             }
         }
     }
-}
-
-@Composable
-private fun StatsRow(data: com.mslx.console.data.model.PmListData) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        StatChip("总数", data.totalCount, Modifier.weight(1f))
-        StatChip("已启用", data.activeCount, Modifier.weight(1f))
-        StatChip("已禁用", data.disabledCount, Modifier.weight(1f))
-        StatChip("仅客户端", data.clientOnlyCount, Modifier.weight(1f))
+    if (showBatchDialog) {
+        AlertDialog(
+            onDismissRequest = { showBatchDialog = false },
+            title = { Text("批量操作") },
+            text = { Text("对当前${if (state.mode == "plugins") "插件" else "模组"}列表执行批量操作。") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.batch("enable"); showBatchDialog = false }) { Text("全部启用") }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = { viewModel.batch("disable"); showBatchDialog = false }) { Text("全部禁用") }
+                    TextButton(onClick = { showBatchDialog = false }) { Text("取消") }
+                }
+            },
+        )
     }
 }
 
 @Composable
-private fun StatChip(label: String, value: Int, modifier: Modifier = Modifier) {
+private fun StatsRow(data: com.mslx.console.data.model.PmListData, selected: PmFilter, onFilter: (PmFilter) -> Unit, onLongPress: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        StatChip("总数", data.totalCount, selected == PmFilter.ALL, Modifier.weight(1f), { onFilter(PmFilter.ALL) }, onLongPress)
+        StatChip("已启用", data.activeCount, selected == PmFilter.ENABLED, Modifier.weight(1f), { onFilter(PmFilter.ENABLED) }, onLongPress)
+        StatChip("已禁用", data.disabledCount, selected == PmFilter.DISABLED, Modifier.weight(1f), { onFilter(PmFilter.DISABLED) }, onLongPress)
+        StatChip("仅客户端", data.clientOnlyCount, selected == PmFilter.CLIENT, Modifier.weight(1f), { onFilter(PmFilter.CLIENT) }, onLongPress)
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun StatChip(label: String, value: Int, selected: Boolean, modifier: Modifier, onClick: () -> Unit, onLongPress: () -> Unit) {
     Card(
-        modifier = modifier,
+        modifier = modifier.combinedClickable(onClick = onClick, onLongClick = onLongPress),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        colors = CardDefaults.cardColors(containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Column(
             modifier = Modifier
