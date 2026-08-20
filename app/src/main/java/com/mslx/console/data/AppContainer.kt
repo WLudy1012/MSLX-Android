@@ -6,4 +6,5 @@ import android.content.Context
 class AppContainer(context: Context) {
     val settingsStore = SettingsStore(context.applicationContext)
     val instanceRepository = InstanceRepository()
+    val updateRepository = UpdateRepository()
 }

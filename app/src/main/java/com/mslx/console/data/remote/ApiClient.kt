@@ -93,6 +93,28 @@ object ApiClient {
             .create(MicrosoftJavaApi::class.java)
     }
 
+    /** 构建 GitHub Releases API 客户端(公开仓库，无需认证)。 */
+    fun buildGitHubReleaseApi(): GitHubReleaseApi {
+        val client = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                val request = chain.request().newBuilder()
+                    .addHeader("Accept", "application/vnd.github+json")
+                    .addHeader("User-Agent", "MSLX-Android/1.2.6")
+                    .build()
+                chain.proceed(request)
+            }
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .build()
+
+        return Retrofit.Builder()
+            .baseUrl("https://api.github.com/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(GitHubReleaseApi::class.java)
+    }
+
     private fun ensureTrailingSlash(url: String): String =
         if (url.endsWith("/")) url else "$url/"
 }

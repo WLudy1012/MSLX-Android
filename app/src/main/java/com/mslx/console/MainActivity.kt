@@ -11,6 +11,7 @@ import com.mslx.console.data.AppSettings
 import com.mslx.console.ui.navigation.AppNavHost
 import com.mslx.console.ui.theme.MSLXConsoleTheme
 import com.mslx.console.ui.theme.ThemeConfig
+import com.mslx.console.ui.update.UpdateHost
 
 class MainActivity : ComponentActivity() {
 
@@ -31,6 +32,8 @@ class MainActivity : ComponentActivity() {
                 ),
             ) {
                 AppNavHost(settings = settings)
+                // 全局更新弹窗：启动自动检查 + 手动检查结果都走这里
+                UpdateHost()
             }
         }
     }
