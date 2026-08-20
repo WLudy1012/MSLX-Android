@@ -24,7 +24,6 @@ import com.mslx.console.data.model.UpdateSelfRequest
 import com.mslx.console.data.model.UpdateSettingsData
 import com.mslx.console.data.model.UserInfo
 import com.google.gson.Gson
-import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.mslx.console.data.remote.ApiClient
 import com.mslx.console.data.remote.ConsoleHubClient
@@ -153,11 +152,13 @@ class InstanceRepository {
     }
 
     suspend fun serverCoreClassify(): Result<ServerCoreClassify> = runCatching {
-        val element = ApiClient.buildMslServerCoreApi().classify()
+        val response = ApiClient.buildMslServerCoreApi().classify()
+        if (response.code != 200) throw IllegalStateException(response.message ?: "获取核心分类失败")
+        val element = response.data ?: throw IllegalStateException("返回分类为空")
         val obj: JsonObject = when {
             element.isJsonObject -> element.asJsonObject
             element.isJsonArray -> {
-                val arr = element as JsonArray
+                val arr = element.asJsonArray
                 if (arr.size() == 0) throw IllegalStateException("返回分类为空")
                 arr.get(0).asJsonObject
             }
@@ -167,15 +168,31 @@ class InstanceRepository {
     }
 
     suspend fun serverCoreGameVersion(name: String): Result<ServerCoreGameVersion> = runCatching {
-        ApiClient.buildMslServerCoreApi().gameVersion(name)
+        val response = ApiClient.buildMslServerCoreApi().gameVersion(name)
+        if (response.code != 200) throw IllegalStateException(response.message ?: "获取核心版本失败")
+        val element = response.data ?: throw IllegalStateException("返回版本为空")
+        val obj: JsonObject = when {
+            element.isJsonObject -> element.asJsonObject
+            element.isJsonArray -> {
+                val arr = element.asJsonArray
+                if (arr.size() == 0) throw IllegalStateException("返回版本为空")
+                arr.get(0).asJsonObject
+            }
+            else -> throw IllegalStateException("返回版本格式错误")
+        }
+        Gson().fromJson(obj, ServerCoreGameVersion::class.java)
     }
 
     suspend fun serverCoreBuilds(name: String, version: String): Result<List<String>> = runCatching {
-        ApiClient.buildMslServerCoreApi().builds(name, version).orEmpty()
+        val response = ApiClient.buildMslServerCoreApi().builds(name, version)
+        if (response.code != 200) throw IllegalStateException(response.message ?: "获取构建版本失败")
+        response.data.orEmpty()
     }
 
     suspend fun serverCoreDownloadInfo(name: String, version: String, build: String = "latest"): Result<ServerCoreDownloadInfo> = runCatching {
-        ApiClient.buildMslServerCoreApi().downloadInfo(name, version, build)
+        val response = ApiClient.buildMslServerCoreApi().downloadInfo(name, version, build)
+        if (response.code != 200) throw IllegalStateException(response.message ?: "获取下载信息失败")
+        response.data ?: throw IllegalStateException("返回下载信息为空")
     }
 
     suspend fun sendAction(id: Long, action: String): Result<String> = runCatching {
