@@ -55,6 +55,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 fun ConnectScreen(
     onConnected: () -> Unit,
     onBack: (() -> Unit)? = null,
+    onAutoConnectFailed: () -> Unit = {},
     autoConnect: Boolean = true,
     editingDaemonId: String? = null,
 ) {
@@ -69,9 +70,15 @@ fun ConnectScreen(
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showKey by remember { mutableStateOf(false) }
+    var failMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.connected.collect { onConnected() }
+    }
+
+    // 启动自动连接失败：弹窗提示，确认后回退主页
+    LaunchedEffect(Unit) {
+        viewModel.autoConnectFailed.collect { failMessage = it }
     }
 
     Scaffold(
@@ -217,5 +224,25 @@ fun ConnectScreen(
                 }
             }
         }
+    }
+
+    // 自动连接失败弹窗
+    if (failMessage != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = {
+                failMessage = null
+                onAutoConnectFailed()
+            },
+            title = { Text("连接失败") },
+            text = { Text(failMessage.orEmpty()) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        failMessage = null
+                        onAutoConnectFailed()
+                    },
+                ) { Text("确定") }
+            },
+        )
     }
 }

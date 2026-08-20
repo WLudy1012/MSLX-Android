@@ -3,7 +3,12 @@ package com.mslx.console.data.remote
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
+import javax.net.ssl.X509TrustManager
 
 object ApiClient {
 
@@ -16,6 +21,10 @@ object ApiClient {
                     .build()
                 chain.proceed(request)
             }
+            // 守护进程常启用自签 HTTPS 证书，默认 TrustManager 会抛 CertPathValidatorException；
+            // 此处信任所有证书（仅用于连接用户自己的守护进程）。
+            .sslSocketFactory(trustAllSslSocketFactory(), trustAllManager())
+            .hostnameVerifier { _, _ -> true }
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
@@ -27,6 +36,19 @@ object ApiClient {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(MslxApi::class.java)
+    }
+
+    /** 信任所有证书的 X509TrustManager（仅守护进程内网自签场景使用）。 */
+    private fun trustAllManager(): X509TrustManager = object : X509TrustManager {
+        override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+        override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+        override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+    }
+
+    private fun trustAllSslSocketFactory(): javax.net.ssl.SSLSocketFactory {
+        val context = SSLContext.getInstance("TLS")
+        context.init(null, arrayOf<TrustManager>(trustAllManager()), SecureRandom())
+        return context.socketFactory
     }
 
     /** 构建 MSLX 官方在线 API 客户端(无需认证)。 */

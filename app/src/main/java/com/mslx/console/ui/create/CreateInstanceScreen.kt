@@ -5,6 +5,14 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -132,6 +140,7 @@ fun CreateInstanceScreen(
             else -> FormContent(
                 state = state,
                 onUpdate = viewModel::update,
+                onModeChange = viewModel::setMode,
                 onNext = viewModel::nextStep,
                 onPrev = viewModel::prevStep,
                 onOpenCoreSelector = viewModel::openCoreSelector,
@@ -178,6 +187,7 @@ private val MODES = listOf(
 private fun FormContent(
     state: CreateInstanceUiState,
     onUpdate: ((CreateInstanceUiState) -> CreateInstanceUiState) -> Unit,
+    onModeChange: (Int) -> Unit,
     onNext: () -> Unit,
     onPrev: () -> Unit,
     onOpenCoreSelector: () -> Unit,
@@ -194,22 +204,32 @@ private fun FormContent(
         // 模式选择
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MODES.forEach { (value, label) ->
-                FilterChip(selected = state.mode == value, onClick = { onUpdate { it.copy(mode = value) } }, label = { Text(label) })
+                FilterChip(selected = state.mode == value, onClick = { onModeChange(value) }, label = { Text(label) })
             }
         }
         Spacer(Modifier.height(12.dp))
         StepIndicator(steps, state.step)
         Spacer(Modifier.height(12.dp))
 
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            when (current?.key) {
-                "basic" -> BasicStep(state, onUpdate)
-                "core" -> CoreStep(state, onUpdate, onOpenCoreSelector, onClearCore, onRemoveUpload, onPickJar)
-                "package" -> PackageStep(state, onUpdate, onOpenCoreSelector, onClearCore, onPickPackage)
-                "java" -> JavaStep(state, onUpdate)
-                "mcdr" -> McdrStep(state, onUpdate)
-                "resource" -> ResourceStep(state, onUpdate)
-                "confirm" -> ConfirmStep(state)
+        // 切换步骤时内容淡入淡出动画
+        androidx.compose.animation.AnimatedContent(
+            targetState = state.step,
+            transitionSpec = {
+                (fadeIn(tween(180)) + slideInHorizontally(tween(180)) { it / 8 })
+                    .togetherWith(fadeOut(tween(120)) + slideOutHorizontally(tween(120)) { -it / 8 })
+            },
+            label = "stepContent",
+        ) { _ ->
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                when (current?.key) {
+                    "basic" -> BasicStep(state, onUpdate)
+                    "core" -> CoreStep(state, onUpdate, onOpenCoreSelector, onClearCore, onRemoveUpload, onPickJar)
+                    "package" -> PackageStep(state, onUpdate, onOpenCoreSelector, onClearCore, onPickPackage)
+                    "java" -> JavaStep(state, onUpdate)
+                    "mcdr" -> McdrStep(state, onUpdate)
+                    "resource" -> ResourceStep(state, onUpdate)
+                    "confirm" -> ConfirmStep(state)
+                }
             }
         }
 
@@ -624,10 +644,16 @@ private fun CreatingContent(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // 进度条平滑前进动画
+    val animatedProgress by animateFloatAsState(
+        targetValue = (progress / 100.0).toFloat().coerceIn(0f, 1f),
+        animationSpec = tween(durationMillis = 400),
+        label = "creationProgress",
+    )
     Column(modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text("正在创建实例 ($serverId)", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(16.dp))
-        LinearProgressIndicator(progress = { (progress / 100.0).toFloat().coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
+        LinearProgressIndicator(progress = { animatedProgress }, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
         Text("${progress.toInt()}%", style = MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.height(16.dp))

@@ -1,7 +1,9 @@
 package com.mslx.console.ui.update
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -16,6 +18,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mslx.console.data.AppUpdateInfo
@@ -39,6 +42,7 @@ fun UpdateHost(
     val update = state.update
     if (update != null) {
         UpdateDialog(
+            currentVersion = state.currentVersion,
             update = update,
             onUpdate = { viewModel.openUpdate() },
             onSkip = { viewModel.skip() },
@@ -48,6 +52,7 @@ fun UpdateHost(
 
 @Composable
 private fun UpdateDialog(
+    currentVersion: String,
     update: AppUpdateInfo,
     onUpdate: () -> Unit,
     onSkip: () -> Unit,
@@ -75,10 +80,15 @@ private fun UpdateDialog(
                     .verticalScroll(rememberScrollState()),
             ) {
                 Text(
-                    text = "更新内容：",
+                    text = if (currentVersion.isBlank()) {
+                        "更新内容："
+                    } else {
+                        "当前版本 v$currentVersion → 新版本 v${update.version}"
+                    },
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Spacer(Modifier.height(4.dp))
                 Text(
                     text = update.notes.ifBlank { "暂无说明" },
                     style = MaterialTheme.typography.bodyMedium,

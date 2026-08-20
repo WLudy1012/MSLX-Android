@@ -18,6 +18,8 @@ data class UpdateUiState(
     val checking: Boolean = false,
     /** 检测到的新版本（非空时 UI 弹窗展示）。 */
     val update: AppUpdateInfo? = null,
+    /** 当前应用版本号，如 "1.2.7"。 */
+    val currentVersion: String = "",
 )
 
 class UpdateViewModel(application: Application) : AndroidViewModel(application) {
@@ -33,6 +35,10 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
 
     /** 是否已执行过启动自动检查（避免重复弹窗）。 */
     private var autoChecked = false
+
+    init {
+        _state.update { it.copy(currentVersion = currentVersion) }
+    }
 
     /** 当前应用版本号，如 "1.2.6"。 */
     private val currentVersion: String

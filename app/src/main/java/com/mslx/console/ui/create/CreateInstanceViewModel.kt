@@ -152,7 +152,26 @@ class CreateInstanceViewModel(application: Application) : AndroidViewModel(appli
     }
 
     fun setMode(mode: Int) {
-        _state.update { it.copy(mode = mode, step = 0) }
+        if (_state.value.mode == mode) return
+        // 切换新建方式：重置向导进度及相关选择状态，避免残留上一方式的旧数据
+        _state.update {
+            it.copy(
+                mode = mode,
+                step = 0,
+                core = "",
+                coreUrl = "",
+                coreSha256 = "",
+                coreFileKey = "",
+                onlineGameVersion = "",
+                packageFileKey = "",
+                packageUrl = "",
+                packageLocalPath = "",
+                mcdrPython = "python",
+                mcdrHandler = "",
+                success = false,
+                error = null,
+            )
+        }
     }
 
     fun nextStep() {
