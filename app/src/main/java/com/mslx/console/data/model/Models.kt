@@ -127,3 +127,14 @@ data class CommandResultPayload(
     @SerializedName("success") val success: Boolean = false,
     @SerializedName("message") val message: String? = null,
 )
+
+/** GET /api/files/instance/{id}/lists 的 data 数组元素(文件/目录项)。 */
+data class FileItem(
+    @SerializedName("name") val name: String = "",
+    @SerializedName("type") val type: String = "file",
+    @SerializedName("size") val size: Long = 0,
+    @SerializedName("lastModified") val lastModified: String? = null,
+    @SerializedName("permission") val permission: String = "",
+) {
+    val isFolder: Boolean get() = type == "folder"
+}

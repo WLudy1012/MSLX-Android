@@ -7,6 +7,7 @@ import com.mslx.console.data.model.CancelCreationRequest
 import com.mslx.console.data.model.CreateServerData
 import com.mslx.console.data.model.CreateServerRequest
 import com.mslx.console.data.model.AdminUpdateUserRequest
+import com.mslx.console.data.model.FileItem
 import com.mslx.console.data.model.FrpSummary
 import com.mslx.console.data.model.InstanceInfo
 import com.mslx.console.data.model.InstanceSummary
@@ -76,6 +77,12 @@ interface MslxApi {
         @Path("id") id: Long,
         @Body body: PmSetRequest,
     ): ApiResponse<Any?>
+
+    @GET("api/files/instance/{id}/lists")
+    suspend fun fileList(
+        @Path("id") id: Long,
+        @Query("path") path: String = "",
+    ): ApiResponse<List<FileItem>>
 
     @GET("api/files/instance/{id}/content")
     suspend fun fileContent(

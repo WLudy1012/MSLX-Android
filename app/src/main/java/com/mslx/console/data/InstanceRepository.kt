@@ -10,6 +10,7 @@ import com.mslx.console.data.model.ServerCoreGameVersion
 import com.mslx.console.data.model.AdminCreateUserRequest
 import com.mslx.console.data.model.AdminUpdateUserRequest
 import com.mslx.console.data.model.FrpSummary
+import com.mslx.console.data.model.FileItem
 import com.mslx.console.data.model.InstanceInfo
 import com.mslx.console.data.model.InstanceSummary
 import com.mslx.console.data.model.LocalJava
@@ -281,6 +282,13 @@ class InstanceRepository {
         val resp = requireApi().fileContent(id, path)
         if (resp.code != 200) throw IllegalStateException(resp.message ?: "读取失败")
         resp.data ?: throw IllegalStateException("返回数据为空")
+    }
+
+    /** 列出实例目录下的文件/子目录（path 为空表示实例根目录）。 */
+    suspend fun fileList(id: Long, path: String = ""): Result<List<FileItem>> = runCatching {
+        val resp = requireApi().fileList(id, path)
+        if (resp.code != 200) throw IllegalStateException(resp.message ?: "获取文件列表失败")
+        resp.data.orEmpty()
     }
 
     suspend fun saveFileContent(id: Long, path: String, content: String): Result<String> = runCatching {

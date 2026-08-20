@@ -18,6 +18,7 @@ import com.mslx.console.ui.console.ConsoleScreen
 import com.mslx.console.ui.create.CreateInstanceScreen
 import com.mslx.console.ui.instances.InstancesScreen
 import com.mslx.console.ui.settings.InstanceSettingsScreen
+import com.mslx.console.ui.settings.FileManagerScreen
 import com.mslx.console.ui.settings.PluginsModsScreen
 import com.mslx.console.ui.settings.ServerPropertiesScreen
 import com.mslx.console.ui.settings.SettingsScreen
@@ -34,6 +35,7 @@ object Routes {
     const val NEW_INSTANCE = "newInstance"
     const val CONSOLE = "console/{instanceId}"
     const val INSTANCE_SETTINGS = "instanceSettings/{instanceId}"
+    const val FILE_MANAGER = "fileManager/{instanceId}"
     const val PLUGINS_MODS = "pluginsMods/{instanceId}"
     const val SERVER_PROPS = "serverProps/{instanceId}"
     const val USER_CENTER = "userCenter"
@@ -42,6 +44,7 @@ object Routes {
     fun connect(auto: Boolean, daemonId: String? = null): String =
         "connect?auto=$auto&daemonId=${daemonId.orEmpty()}"
     fun instanceSettings(instanceId: Long): String = "instanceSettings/$instanceId"
+    fun fileManager(instanceId: Long): String = "fileManager/$instanceId"
     fun pluginsMods(instanceId: Long): String = "pluginsMods/$instanceId"
     fun serverProps(instanceId: Long): String = "serverProps/$instanceId"
 }
@@ -199,6 +202,20 @@ fun AppNavHost(
                 onOpenServerProps = {
                     navController.navigate(Routes.serverProps(instanceId)) { launchSingleTop = true }
                 },
+                onOpenFileManager = {
+                    navController.navigate(Routes.fileManager(instanceId)) { launchSingleTop = true }
+                },
+            )
+        }
+
+        composable(
+            route = Routes.FILE_MANAGER,
+            arguments = listOf(navArgument("instanceId") { type = NavType.LongType }),
+        ) { backStackEntry ->
+            val instanceId = backStackEntry.arguments?.getLong("instanceId") ?: 0L
+            FileManagerScreen(
+                instanceId = instanceId,
+                onBack = { navController.popBackStack() },
             )
         }
 

@@ -60,6 +60,7 @@ fun InstanceSettingsScreen(
     onBack: () -> Unit,
     onOpenPluginsMods: () -> Unit,
     onOpenServerProps: () -> Unit,
+    onOpenFileManager: () -> Unit,
 ) {
     val viewModel: InstanceSettingsViewModel = viewModel(
         key = "instance_settings_$instanceId",
@@ -178,6 +179,11 @@ fun InstanceSettingsScreen(
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             EntryCard("插件 / 模组", Modifier.weight(1f)) { onOpenPluginsMods() }
                             EntryCard("server.properties", Modifier.weight(1f)) { onOpenServerProps() }
+                        }
+                    }
+                    item {
+                        EntryCard("文件管理（查看/编辑 eula.txt 等）", Modifier.fillMaxWidth()) {
+                            onOpenFileManager()
                         }
                     }
 

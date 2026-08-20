@@ -15,6 +15,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+/** 已同意 EULA 的 eula.txt 内容（与守护进程 AgreeEULA 写入格式一致）。 */
+private const val EULA_AGREED_CONTENT =
+    "#By changing the setting below to TRUE you are indicating your agreement to our EULA (https://aka.ms/MinecraftEULA).\n#MSLX-Android auto agreed\neula=true\n"
+
 data class CoreCategory(
     val key: String,
     val name: String,
@@ -486,6 +490,17 @@ class CreateInstanceViewModel(application: Application) : AndroidViewModel(appli
                 progress >= 100.0 -> {
                     _state.update { it.copy(creating = false, submitting = false, success = true) }
                     creationClient?.disconnect()
+                    // 勾选了"自动同意 EULA"时，创建成功后直接写 eula.txt，
+                    // 否则 vanilla 等核心首次启动仍会因 eula.txt 未同意而退出
+                    if (_state.value.ignoreEula) {
+                        viewModelScope.launch {
+                            repository.saveFileContent(
+                                id = serverId.toLongOrNull() ?: return@launch,
+                                path = "eula.txt",
+                                content = EULA_AGREED_CONTENT,
+                            )
+                        }
+                    }
                 }
                 progress == -1.0 -> {
                     _state.update { it.copy(creating = false, submitting = false, error = message) }

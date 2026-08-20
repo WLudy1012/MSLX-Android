@@ -15,6 +15,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/** 已同意 EULA 的 eula.txt 内容（与守护进程 AgreeEULA 写入格式一致）。 */
+private const val EULA_AGREED_CONTENT =
+    "#By changing the setting below to TRUE you are indicating your agreement to our EULA (https://aka.ms/MinecraftEULA).\n#MSLX-Android auto agreed\neula=true\n"
+
 data class LogLine(val text: String, val system: Boolean = false)
 
 sealed interface ConsoleEvent {
@@ -121,6 +125,9 @@ class ConsoleViewModel(
         if (_state.value.busy) return
         _state.update { it.copy(busy = true) }
         viewModelScope.launch {
+            // 启动前：若实例设置了"忽略/自动同意 EULA"，先写入 eula.txt，
+            // 否则 vanilla 等服务端仍会因 eula.txt 未同意而拒绝启动
+            if (action == "start") ensureEulaAgreed()
             val result = repository.sendAction(instanceId, action)
             if (result.isSuccess) {
                 _events.tryEmit(ConsoleEvent.Toast(result.getOrNull() ?: "操作成功"))
@@ -130,6 +137,17 @@ class ConsoleViewModel(
             }
             _state.update { it.copy(busy = false) }
         }
+    }
+
+    /** 若实例 ignoreEula=true，则把 eula.txt 写入已同意内容（失败静默，由后续启动流程兜底）。 */
+    private suspend fun ensureEulaAgreed() {
+        val settings = repository.getSettings(instanceId).getOrNull() ?: return
+        if (settings.ignoreEula != true) return
+        val propsPath = settings.serverPropertiesPath?.trim().orEmpty()
+            .ifBlank { "server.properties" }
+        val dir = propsPath.substringBeforeLast('/', "")
+        val eulaPath = if (dir.isBlank()) "eula.txt" else "$dir/eula.txt"
+        runCatching { repository.saveFileContent(instanceId, eulaPath, EULA_AGREED_CONTENT) }
     }
 
     fun agreeEulaAndStart() {

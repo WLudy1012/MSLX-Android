@@ -17,7 +17,7 @@ import java.util.UUID
 data class ConnectUiState(
     val editingId: String? = null,
     val name: String = "",
-    val baseUrl: String = "http://localhost:1027",
+    val baseUrl: String = "",
     val apiKey: String = "",
     val loading: Boolean = false,
     val autoChecking: Boolean = false,
@@ -51,7 +51,7 @@ class ConnectViewModel(
                         it.copy(
                             editingId = target.id,
                             name = target.name,
-                            baseUrl = target.baseUrl.ifBlank { "http://localhost:1027" },
+                            baseUrl = target.baseUrl,
                             apiKey = target.apiKey,
                         )
                     }
@@ -68,7 +68,7 @@ class ConnectViewModel(
 
     fun connect() {
         val s = _state.value
-        val baseUrl = s.baseUrl.trim().trimEnd('/')
+        val baseUrl = normalizeBaseUrl(s.baseUrl)
         val apiKey = s.apiKey.trim()
         if (baseUrl.isBlank() || apiKey.isBlank()) {
             _state.update { it.copy(error = "请填写完整的 Daemon 地址和 API Key。") }
@@ -84,12 +84,23 @@ class ConnectViewModel(
         doConnect(config)
     }
 
+    /** 规范化 Daemon 地址：去除首尾空白/斜杠；缺少协议头时自动补 http://。 */
+    private fun normalizeBaseUrl(input: String): String {
+        var url = input.trim().trimEnd('/')
+        if (url.isNotBlank() && !url.startsWith("http://") && !url.startsWith("https://")) {
+            url = "http://$url"
+        }
+        return url
+    }
+
     private fun doConnect(config: DaemonConfig, auto: Boolean = false) {
         if (_state.value.loading) return
         _state.update { it.copy(loading = true, autoChecking = auto, error = null) }
         viewModelScope.launch {
-            repository.configure(config.baseUrl, config.apiKey)
-            val result = repository.verify()
+            val result = runCatching {
+                repository.configure(config.baseUrl, config.apiKey)
+                repository.verify()
+            }
             if (result.isSuccess) {
                 store.upsertDaemon(config)
                 _state.update { it.copy(loading = false, autoChecking = false) }
