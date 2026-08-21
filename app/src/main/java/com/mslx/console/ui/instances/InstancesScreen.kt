@@ -182,7 +182,13 @@ fun InstancesScreen(
                         ) {
                             item {
                                 val info = state.systemInfo
-                                ResourceSummary(info?.cpuUsage, info?.memoryUsage, info?.memoryUsed, info?.memoryTotal)
+                                ResourceSummary(
+                                    cpu = info?.cpuUsage,
+                                    memoryUsage = info?.memoryUsage,
+                                    memoryUsed = info?.memoryUsed,
+                                    memoryTotal = info?.memoryTotal,
+                                    protocol = protocolLabel(viewModel.baseUrl),
+                                )
                             }
                             items(state.instances, key = { it.id }) { instance ->
                                 InstanceCard(
@@ -226,7 +232,13 @@ fun InstancesScreen(
 }
 
 @Composable
-private fun ResourceSummary(cpu: Double?, memoryUsage: Double?, memoryUsed: Double?, memoryTotal: Double?) {
+private fun ResourceSummary(
+    cpu: Double?,
+    memoryUsage: Double?,
+    memoryUsed: Double?,
+    memoryTotal: Double?,
+    protocol: String,
+) {
     Card(shape = RoundedCornerShape(12.dp)) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
@@ -239,8 +251,16 @@ private fun ResourceSummary(cpu: Double?, memoryUsage: Double?, memoryUsed: Doub
                 else -> "Daemon 未提供"
             }
             Metric("内存", memory)
+            Metric("连接协议", protocol)
         }
     }
+}
+
+/** 根据 Daemon 地址协议推导连接协议指标文案。 */
+private fun protocolLabel(baseUrl: String): String = when {
+    baseUrl.startsWith("https://", ignoreCase = true) -> "HTTPS / WSS"
+    baseUrl.startsWith("http://", ignoreCase = true) -> "HTTP / WS"
+    else -> "未知"
 }
 
 @Composable

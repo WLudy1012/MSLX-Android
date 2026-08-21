@@ -23,6 +23,6 @@ data class GitHubReleaseAsset(
 interface GitHubReleaseApi {
 
     /** 获取最新正式 release。 */
-    @GET("repos/WLudy1012/MSLX-Android/releases/latest")
+    @GET("repos/WLudy1012/MSLX_APP-Android/releases/latest")
     suspend fun latestRelease(): GitHubRelease
 }

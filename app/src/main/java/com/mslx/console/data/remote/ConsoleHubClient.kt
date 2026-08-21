@@ -32,6 +32,7 @@ class ConsoleHubClient(
 
         val hub = HubConnectionBuilder.create(url)
             .withHeader("x-api-key", apiKey)
+            .setHttpClientBuilderCallback { builder -> ApiClient.configureDaemonHttpClient(builder) }
             .build()
 
         hub.on("ReceiveLog", { log: String -> onLog(log) }, String::class.java)

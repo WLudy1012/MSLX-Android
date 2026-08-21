@@ -17,6 +17,7 @@ class UpdateProgressClient(
         val hub = HubConnectionBuilder
             .create("${baseUrl.trimEnd('/')}/api/hubs/updateProgressHub")
             .withHeader("x-api-key", apiKey)
+            .setHttpClientBuilderCallback { builder -> ApiClient.configureDaemonHttpClient(builder) }
             .build()
         hub.on(
             "UpdateStatus",

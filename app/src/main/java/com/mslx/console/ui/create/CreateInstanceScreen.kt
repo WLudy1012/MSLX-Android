@@ -376,7 +376,7 @@ private fun PackageStep(state: CreateInstanceUiState, onUpdate: ((CreateInstance
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun JavaStep(state: CreateInstanceUiState, onUpdate: ((CreateInstanceUiState) -> CreateInstanceUiState) -> Unit) {
-    var pendingVersion by remember { mutableStateOf<String?>(null) }
+    var pending by remember { mutableStateOf<PendingJava?>(null) }
     val recommended = recommendedJavaFor(state.onlineGameVersion)
     SectionCard("Java 环境") {
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -385,14 +385,29 @@ private fun JavaStep(state: CreateInstanceUiState, onUpdate: ((CreateInstanceUiS
         Spacer(Modifier.height(8.dp))
         recommended?.let { Text("当前核心建议使用 Java $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary) }
         when (state.javaType) {
-            "online" -> FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { state.onlineJavaVersions.forEach { version -> FilterChip(state.selectedJavaVersion == version, { if (recommended != null && version.toIntOrNull() != recommended) pendingVersion = version else onUpdate { it.copy(selectedJavaVersion = version) } }, label = { Text("Java $version") }) } }
-            "local" -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) { state.localJavas.forEach { java -> val version = java.version.filter { it.isDigit() }.toIntOrNull(); FilterChip(state.customJavaPath == java.path, { if (recommended != null && version != recommended) pendingVersion = java.version else onUpdate { it.copy(customJavaPath = java.path) } }, label = { Text("Java ${java.version} (${java.vendor ?: "未知"})") }) } }
+            "online" -> FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { state.onlineJavaVersions.forEach { version -> FilterChip(state.selectedJavaVersion == version, { if (recommended != null && version.toIntOrNull() != recommended) pending = PendingJava("online", version) else onUpdate { it.copy(selectedJavaVersion = version) } }, label = { Text("Java $version") }) } }
+            "local" -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) { state.localJavas.forEach { java -> val major = parseJavaMajorVersion(java.version); FilterChip(state.customJavaPath == java.path, { if (recommended != null && major != recommended) pending = PendingJava("local", java.version, java.path) else onUpdate { it.copy(customJavaPath = java.path) } }, label = { Text("Java ${java.version} (${java.vendor ?: "未知"})") }) } }
             "env" -> Text("将使用系统环境变量中的 java 命令", style = MaterialTheme.typography.bodySmall)
             "custom" -> OutlinedTextField(state.customJavaPath, { v -> onUpdate { it.copy(customJavaPath = v) } }, label = { Text("Java 可执行文件路径") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            "docker" -> if (state.dockerImageType == "preset") FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { listOf("25", "21", "17", "11", "8").forEach { version -> FilterChip(state.dockerImagePresetVersion == version, { if (recommended != null && version.toIntOrNull() != recommended) pendingVersion = version else onUpdate { it.copy(dockerImagePresetVersion = version) } }, label = { Text("Java $version") }) } } else OutlinedTextField(state.dockerCustomImage, { v -> onUpdate { it.copy(dockerCustomImage = v) } }, label = { Text("自定义镜像") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            "docker" -> if (state.dockerImageType == "preset") FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { listOf("25", "21", "17", "11", "8").forEach { version -> FilterChip(state.dockerImagePresetVersion == version, { if (recommended != null && version.toIntOrNull() != recommended) pending = PendingJava("docker", version) else onUpdate { it.copy(dockerImagePresetVersion = version) } }, label = { Text("Java $version") }) } } else OutlinedTextField(state.dockerCustomImage, { v -> onUpdate { it.copy(dockerCustomImage = v) } }, label = { Text("自定义镜像") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         }
     }
-    pendingVersion?.let { version -> AlertDialog(onDismissRequest = { pendingVersion = null }, title = { Text("Java 版本建议") }, text = { Text("当前服务端版本建议使用 Java ${recommended ?: "对应版本"}，你选择的是 Java $version。仍要继续吗？") }, confirmButton = { TextButton(onClick = { onUpdate { if (state.javaType == "docker") it.copy(dockerImagePresetVersion = version) else it.copy(selectedJavaVersion = version) }; pendingVersion = null }) { Text("仍然使用") } }, dismissButton = { TextButton(onClick = { pendingVersion = null }) { Text("返回") } }) }
+    pending?.let { p -> AlertDialog(
+        onDismissRequest = { pending = null },
+        title = { Text("Java 版本建议") },
+        text = { Text("当前服务端版本建议使用 Java ${recommended ?: "对应版本"}，你选择的是 Java ${p.version}。仍要继续吗？") },
+        confirmButton = { TextButton(onClick = {
+            onUpdate { s ->
+                when (p.type) {
+                    "local" -> s.copy(customJavaPath = p.localPath.orEmpty())
+                    "docker" -> s.copy(dockerImagePresetVersion = p.version)
+                    else -> s.copy(selectedJavaVersion = p.version)
+                }
+            }
+            pending = null
+        }) { Text("仍然使用") } },
+        dismissButton = { TextButton(onClick = { pending = null }) { Text("返回") } },
+    ) }
 }
 
 private fun recommendedJavaFor(gameVersion: String): Int? {
@@ -408,6 +423,19 @@ private fun recommendedJavaFor(gameVersion: String): Int? {
         minor <= 20 && (minor < 20 || patch <= 4) -> 17
         else -> 21
     }
+}
+
+/** 暂存的"仍要使用非推荐版本"的选择;本地 Java 额外记录 path,确认时写回 customJavaPath。 */
+private data class PendingJava(val type: String, val version: String, val localPath: String? = null)
+
+/** 解析 Java 主版本号:`1.8.0_401` -> 8,`17.0.10` -> 17,`21` -> 21。 */
+private fun parseJavaMajorVersion(version: String): Int? {
+    val trimmed = version.trim()
+    trimmed.toIntOrNull()?.let { return it }
+    val match = Regex("^(\\d+)(?:\\.(\\d+))?").find(trimmed) ?: return null
+    val first = match.groupValues[1].toIntOrNull() ?: return null
+    val second = match.groupValues[2].toIntOrNull()
+    return if (first == 1 && second != null) second else first
 }
 
 

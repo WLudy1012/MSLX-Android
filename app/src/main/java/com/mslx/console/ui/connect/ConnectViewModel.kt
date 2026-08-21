@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mslx.console.MSLXApplication
 import com.mslx.console.data.DaemonConfig
+import com.mslx.console.data.remote.ApiClient
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -109,7 +110,7 @@ class ConnectViewModel(
         viewModelScope.launch {
             val duplicate = store.settingsFlow.first().daemons.any {
                 it.id != config.id &&
-                    it.baseUrl.trimEnd('/').equals(config.baseUrl.trimEnd('/'), ignoreCase = true) &&
+                    ApiClient.normalizeDaemonUrl(it.baseUrl).equals(ApiClient.normalizeDaemonUrl(config.baseUrl), ignoreCase = true) &&
                     it.apiKey == config.apiKey
             }
             if (duplicate) {

@@ -13,7 +13,7 @@ import javax.net.ssl.X509TrustManager
 object ApiClient {
 
     fun build(baseUrl: String, apiKey: String): MslxApi {
-        val client = OkHttpClient.Builder()
+        val builder = OkHttpClient.Builder()
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
                     .addHeader("x-api-key", apiKey)
@@ -21,14 +21,14 @@ object ApiClient {
                     .build()
                 chain.proceed(request)
             }
-            // 守护进程常启用自签 HTTPS 证书，默认 TrustManager 会抛 CertPathValidatorException；
-            // 此处信任所有证书（仅用于连接用户自己的守护进程）。
-            .sslSocketFactory(trustAllSslSocketFactory(), trustAllManager())
-            .hostnameVerifier { _, _ -> true }
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
-            .build()
+
+        // 守护进程常启用自签 HTTPS 证书，默认 TrustManager 会抛 CertPathValidatorException；
+        // 此处信任所有证书（仅用于连接用户自己的守护进程）。
+        configureDaemonHttpClient(builder)
+        val client = builder.build()
 
         return Retrofit.Builder()
             .baseUrl(ensureTrailingSlash(baseUrl))
@@ -38,6 +38,17 @@ object ApiClient {
             .create(MslxApi::class.java)
     }
 
+    /**
+     * 给 OkHttpClient.Builder 配置信任所有证书的 SSL（仅守护进程内网自签场景使用）。
+     * sslSocketFactory 与 hostnameVerifier 使用同一个 X509TrustManager 实例。
+     */
+    fun configureDaemonHttpClient(builder: OkHttpClient.Builder) {
+        val manager = trustAllManager()
+        builder
+            .sslSocketFactory(trustAllSslSocketFactory(manager), manager)
+            .hostnameVerifier { _, _ -> true }
+    }
+
     /** 信任所有证书的 X509TrustManager（仅守护进程内网自签场景使用）。 */
     private fun trustAllManager(): X509TrustManager = object : X509TrustManager {
         override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
@@ -45,9 +56,9 @@ object ApiClient {
         override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
     }
 
-    private fun trustAllSslSocketFactory(): javax.net.ssl.SSLSocketFactory {
+    private fun trustAllSslSocketFactory(manager: X509TrustManager): javax.net.ssl.SSLSocketFactory {
         val context = SSLContext.getInstance("TLS")
-        context.init(null, arrayOf<TrustManager>(trustAllManager()), SecureRandom())
+        context.init(null, arrayOf<TrustManager>(manager), SecureRandom())
         return context.socketFactory
     }
 

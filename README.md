@@ -1,18 +1,23 @@
-# MSLX 控制台(Android)
+# MSLX_APP-Android(MSLX 控制台 / Android 端)
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![Android CI](https://github.com/WLudy1012/MSLX-Android/actions/workflows/android.yml/badge.svg)](https://github.com/WLudy1012/MSLX-Android/actions/workflows/android.yml)
+[![Android CI](https://github.com/WLudy1012/MSLX_APP-Android/actions/workflows/android.yml/badge.svg)](https://github.com/WLudy1012/MSLX_APP-Android/actions/workflows/android.yml)
 
 MSLX 守护程序(MSLX Daemon)的手机安卓端控制台。基于 **Kotlin + Jetpack Compose** 构建，
 复刻了 MSLX Desktop 版"连接守护程序 → 管理实例"的核心能力,并针对手机触屏重新设计了操作流程。
+
+> 仓库地址:https://github.com/WLudy1012/MSLX_APP-Android。Android applicationId / 包名仍为 `com.mslx.console`,未随仓库改名而修改。
 
 ## ✨ 功能
 
 - **连接守护程序**:输入 Daemon 地址(BaseURL)+ API Key,勾选"记住连接信息"后下次启动自动连接。
 - **实例列表**:展示所有实例的名称、运行状态(未启动/启动中/运行中/停止中/重启中)、在线人数,支持下拉刷新。
 - **实例控制**:启动、停止、重启、强制结束、备份。
+- **实例删除**:删除前需输入实例名二次确认,可选"同时删除磁盘上的服务端数据文件"。
 - **实时控制台**:深色终端风格,实时接收服务器日志,支持发送命令、自动滚动、清空日志、一键回到最新。
+- **资源概览**:实例主页顶部显示 Daemon 的 CPU、内存占用与当前连接协议(HTTP / WS、HTTPS / WSS)。
 - **EULA 引导**:服务器因未签署 EULA 而无法启动时,自动弹窗引导"同意并启动"。
+- **用户中心**:查看当前用户信息,可一键复制 API Key(系统账户显示为 System)。
 
 ## 📁 目录结构
 
@@ -48,7 +53,7 @@ app/src/main/java/com/mslx/console/
 
 ## 🛠 编译
 
-1. 用 **Android Studio**(建议 Ladybug 或更新版本)打开本目录 `MSLX-Android`。
+1. 用 **Android Studio**(建议 Ladybug 或更新版本)打开本目录 `MSLX_APP-Android`。
 2. 等待 Gradle 同步完成(首次会下载依赖,需要联网)。
 3. `Build → Build APK(s)`,或在连接设备后点击 `Run`。
 
@@ -69,6 +74,10 @@ app/src/main/java/com/mslx/console/
 - 请确保守护程序所在主机的防火墙放行了对应端口(默认 1027)。
 - 本 App 允许 `http://` 明文连接(内网场景);若你的 Daemon 已启用 HTTPS,可在
   `AndroidManifest.xml` 中将 `android:usesCleartextTraffic` 改为 `false` 以增强安全性。
+- HTTPS / WSS 自签证书:App 对守护进程的 REST 与 SignalR(WebSocket)连接均信任自签证书(仅用于连接你自己的守护进程);
+  若控制台连接报"WebSocket 协商失败",请确认 Daemon 已启用 WebSocket,并检查 HTTPS / 反向代理的 WS 升级配置。
+- 路径预设限制:新建实例 / 整合包的"Daemon 绝对路径"目前仅提供常用路径预设(/home/user/下载/、/home/user/、/opt/servers/),
+  也可手动输入任意绝对路径;文件管理仅支持对已存在的实例 id 进行浏览 / 编辑。
 - API 契约与 Desktop 版一致:`x-api-key` 请求头认证、`GET /api/instance/list`、
   `POST /api/instance/action`、SignalR `/api/hubs/instanceControlHub`。
 

@@ -100,7 +100,28 @@ class ConsoleViewModel(
             withContext(Dispatchers.IO) { hubClient.connect() }
             _state.update { it.copy(connecting = false, connected = true) }
         } catch (e: Exception) {
-            _state.update { it.copy(connecting = false, connected = false, connectionError = e.message) }
+            _state.update {
+                it.copy(connecting = false, connected = false, connectionError = formatConnectionError(e))
+            }
+        }
+    }
+
+    /**
+     * 将控制台 SignalR 连接异常格式化为面向用户的提示：
+     * 异常链包含 websocket / negotiate / transport（大小写不敏感）时，
+     * 判定为 WebSocket 协商失败并给出额外排查指引；否则按普通连接失败处理。
+     */
+    private fun formatConnectionError(e: Exception): String {
+        val chainMessages = generateSequence<Throwable>(e) { it.cause }
+            .mapNotNull { it.message }
+            .joinToString(" ")
+        val isWebSocketIssue = listOf("websocket", "negotiate", "transport")
+            .any { chainMessages.contains(it, ignoreCase = true) }
+        val base = e.message ?: "未知错误"
+        return if (isWebSocketIssue) {
+            "WebSocket 协商失败：$base 请确认 Daemon 已启用 WebSocket，并检查 HTTPS/反向代理配置。"
+        } else {
+            "控制台连接失败：$base"
         }
     }
 
