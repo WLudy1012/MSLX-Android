@@ -9,6 +9,7 @@ import com.mslx.console.data.model.NodeStatsPayload
 import com.mslx.console.data.model.SystemInfo
 import com.mslx.console.data.remote.ApiClient
 import com.mslx.console.data.remote.SystemMonitorClient
+import com.mslx.console.ui.ServerNotificationHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -185,7 +186,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** 对比上次状态快照，生成开服/关服通知（仅保留最近 50 条）。 */
+    /** 对比上次状态快照，生成开服/关服通知（仅保留最近 50 条）并发送原生系统通知。 */
     private fun detectStatusChanges(current: List<InstanceSummary>) {
         val now = System.currentTimeMillis()
         val notifications = mutableListOf<ServerNotification>()
@@ -195,14 +196,22 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 val becameRunning = instance.status == 2 && previous != 2
                 val leftRunning = previous == 2 && instance.status != 2
                 if (becameRunning || leftRunning) {
-                    notifications.add(
-                        ServerNotification(
-                            id = instance.id,
-                            instanceName = instance.name ?: "实例 #${instance.id}",
-                            isOpened = becameRunning,
-                            time = now,
-                        ),
+                    val item = ServerNotification(
+                        id = instance.id,
+                        instanceName = instance.name ?: "实例 #${instance.id}",
+                        isOpened = becameRunning,
+                        time = now,
                     )
+                    notifications.add(item)
+                    // 发送 Android 原生通知（点击跳转实例控制台）
+                    runCatching {
+                        ServerNotificationHelper.notifyServerStatus(
+                            context = getApplication(),
+                            instanceId = instance.id,
+                            instanceName = item.instanceName,
+                            isOpened = becameRunning,
+                        )
+                    }
                 }
             }
             lastStatus[instance.id] = instance.status

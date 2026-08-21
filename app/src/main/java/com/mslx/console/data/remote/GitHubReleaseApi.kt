@@ -8,6 +8,7 @@ data class GitHubRelease(
     @SerializedName("tag_name") val tagName: String? = null,
     @SerializedName("name") val name: String? = null,
     @SerializedName("body") val body: String? = null,
+    @SerializedName("prerelease") val prerelease: Boolean = false,
     @SerializedName("published_at") val publishedAt: String? = null,
     @SerializedName("assets") val assets: List<GitHubReleaseAsset> = emptyList(),
 )
@@ -25,4 +26,8 @@ interface GitHubReleaseApi {
     /** 获取最新正式 release。 */
     @GET("repos/WLudy1012/MSLX_APP-Android/releases/latest")
     suspend fun latestRelease(): GitHubRelease
+
+    /** 获取最近一批 release（含历史强制更新版本，用于强制更新判定）。 */
+    @GET("repos/WLudy1012/MSLX_APP-Android/releases?per_page=30")
+    suspend fun releases(): List<GitHubRelease>
 }

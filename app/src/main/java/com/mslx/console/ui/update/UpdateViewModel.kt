@@ -7,6 +7,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mslx.console.MSLXApplication
 import com.mslx.console.data.AppUpdateInfo
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -36,6 +38,9 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
     /** 是否已执行过启动自动检查（避免重复弹窗）。 */
     private var autoChecked = false
 
+    /** 启动检查失败（如断网）后的补偿重试任务：防止"断网进主页后联网"绕过强制更新。 */
+    private var retryJob: Job? = null
+
     init {
         _state.update { it.copy(currentVersion = currentVersion) }
     }
@@ -48,7 +53,7 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
                 .versionName.orEmpty()
         }.getOrDefault("")
 
-    /** 启动时自动检查。仅首次生效。 */
+    /** 启动时自动检查。仅首次生效；失败后自动进入补偿重试，联网恢复后仍会再次检查。 */
     fun checkOnLaunch() {
         if (autoChecked) return
         autoChecked = true
@@ -67,6 +72,8 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
                     _state.update {
                         it.copy(checking = false, update = update)
                     }
+                    retryJob?.cancel()
+                    retryJob = null
                     if (manual && update == null) {
                         _message.tryEmit("当前已是最新版本")
                     }
@@ -76,13 +83,35 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
                     if (manual) {
                         _message.tryEmit("检查更新失败：${e.message ?: "网络错误"}")
                     }
+                    // 非手动（启动）检查失败时安排补偿重试，直到成功发现更新或用户跳过后停止
+                    if (!manual && _state.value.update == null) {
+                        scheduleRetry()
+                    }
                 },
             )
         }
     }
 
-    /** 用户选择"跳过"（关闭弹窗，本次启动不再提示）。 */
+    /**
+     * 补偿重试：每 30 秒重试一次检查，最长 20 分钟（40 次）。
+     * 防止"启动时断网 → 进主页后联网"绕过强制更新：一旦联网恢复，重试会拉到新版本并弹窗。
+     */
+    private fun scheduleRetry() {
+        if (retryJob?.isActive == true) return
+        retryJob = viewModelScope.launch {
+            repeat(40) {
+                delay(30_000)
+                if (_state.value.update != null) return@launch
+                if (_state.value.checking) return@launch
+                check(manual = false)
+            }
+        }
+    }
+
+    /** 用户选择"跳过"（关闭弹窗，本次启动不再提示；同时停止补偿重试）。 */
     fun skip() {
+        retryJob?.cancel()
+        retryJob = null
         _state.update { it.copy(update = null) }
     }
 
