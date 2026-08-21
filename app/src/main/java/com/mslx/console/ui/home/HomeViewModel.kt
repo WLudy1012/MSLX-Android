@@ -123,7 +123,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val client = repository.createSystemMonitorClient(::onSystemStats)
         monitorClient = client
         viewModelScope.launch(Dispatchers.IO) {
-            runCatching { client.connect() }
+            val ok = runCatching { client.connect() }.isSuccess
+            if (!ok) {
+                // 连接失败：释放引用，允许下次重连（如 daemon 重启后用户回到主页）
+                monitorClient = null
+            }
         }
     }
 

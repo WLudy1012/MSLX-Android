@@ -86,10 +86,14 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
         _state.update { it.copy(update = null) }
     }
 
-    /** 用户选择"更新"：跳转浏览器下载 APK。 */
+    /** 用户选择"更新"：跳转浏览器下载 APK。仅放行 https 且 host 为 GitHub 下载域，防任意 scheme 拉起。 */
     fun openUpdate() {
         val url = _state.value.update?.downloadUrl ?: return
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+        val uri = Uri.parse(url)
+        val allowedHosts = setOf("github.com", "www.github.com", "objects.githubusercontent.com")
+        val host = uri.host?.lowercase() ?: return
+        if (uri.scheme != "https" || host !in allowedHosts) return
+        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         runCatching { getApplication<Application>().startActivity(intent) }

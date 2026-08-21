@@ -17,7 +17,7 @@ object ApiClient {
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
                     .addHeader("x-api-key", apiKey)
-                    .addHeader("User-Agent", "MSLX-Android/1.2.9")
+                    .addHeader("User-Agent", "MSLX-Android/1.2.10")
                     .build()
                 chain.proceed(request)
             }
@@ -67,7 +67,7 @@ object ApiClient {
         val client = OkHttpClient.Builder()
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
-                    .addHeader("User-Agent", "MSLX-Android/1.2.9")
+                    .addHeader("User-Agent", "MSLX-Android/1.2.10")
                     .build()
                 chain.proceed(request)
             }
@@ -88,7 +88,7 @@ object ApiClient {
         val client = OkHttpClient.Builder()
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
-                    .addHeader("User-Agent", "MSLX-Android/1.2.9")
+                    .addHeader("User-Agent", "MSLX-Android/1.2.10")
                     .build()
                 chain.proceed(request)
             }
@@ -110,7 +110,7 @@ object ApiClient {
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
                     .addHeader("Accept", "application/vnd.github+json")
-                    .addHeader("User-Agent", "MSLX-Android/1.2.9")
+                    .addHeader("User-Agent", "MSLX-Android/1.2.10")
                     .build()
                 chain.proceed(request)
             }
@@ -132,7 +132,7 @@ object ApiClient {
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
                     .addHeader("Accept", "application/vnd.github+json")
-                    .addHeader("User-Agent", "MSLX-Android/1.2.9")
+                    .addHeader("User-Agent", "MSLX-Android/1.2.10")
                     .build()
                 chain.proceed(request)
             }

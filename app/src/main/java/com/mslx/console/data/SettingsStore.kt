@@ -105,7 +105,12 @@ class SettingsStore(private val context: Context) {
     suspend fun acceptDisclaimer() = update { it.copy(disclaimerAccepted = true) }
 
     private fun encodeDaemons(daemons: List<DaemonConfig>): String =
-        gson.toJson(daemons.map { it.copy(apiKey = CryptoManager.encrypt(it.apiKey) ?: it.apiKey) })
+        gson.toJson(
+            daemons.map {
+                // 加密失败（fail-closed）：清空 apiKey，禁止明文落盘
+                it.copy(apiKey = CryptoManager.encrypt(it.apiKey) ?: "")
+            },
+        )
 
     private fun decodeDaemons(json: String): List<DaemonConfig> = runCatching {
         gson.fromJson<List<DaemonConfig>>(json, object : TypeToken<List<DaemonConfig>>() {}.type)
