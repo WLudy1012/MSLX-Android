@@ -54,8 +54,8 @@ class InstanceRepository {
     val isConfigured: Boolean get() = api != null && baseUrl.isNotBlank()
 
     /** 配置连接地址并重建 API 客户端(每次连接/切换连接时调用)。 */
-    fun configure(baseUrl: String, apiKey: String) {
-        val normalized = ApiClient.normalizeDaemonUrl(baseUrl)
+    fun configure(baseUrl: String, apiKey: String, allowHttp: Boolean = false) {
+        val normalized = ApiClient.normalizeDaemonUrl(baseUrl, allowHttp)
         this.baseUrl = normalized
         this.apiKey = apiKey.trim()
         this.api = ApiClient.build(normalized, this.apiKey)

@@ -17,7 +17,7 @@ object ApiClient {
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
                     .addHeader("x-api-key", apiKey)
-                    .addHeader("User-Agent", "MSLX-Android/1.2.10")
+                    .addHeader("User-Agent", "MSLX-Android/1.2.11")
                     .build()
                 chain.proceed(request)
             }
@@ -67,7 +67,7 @@ object ApiClient {
         val client = OkHttpClient.Builder()
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
-                    .addHeader("User-Agent", "MSLX-Android/1.2.10")
+                    .addHeader("User-Agent", "MSLX-Android/1.2.11")
                     .build()
                 chain.proceed(request)
             }
@@ -88,7 +88,7 @@ object ApiClient {
         val client = OkHttpClient.Builder()
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
-                    .addHeader("User-Agent", "MSLX-Android/1.2.10")
+                    .addHeader("User-Agent", "MSLX-Android/1.2.11")
                     .build()
                 chain.proceed(request)
             }
@@ -110,7 +110,7 @@ object ApiClient {
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
                     .addHeader("Accept", "application/vnd.github+json")
-                    .addHeader("User-Agent", "MSLX-Android/1.2.10")
+                    .addHeader("User-Agent", "MSLX-Android/1.2.11")
                     .build()
                 chain.proceed(request)
             }
@@ -132,7 +132,7 @@ object ApiClient {
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
                     .addHeader("Accept", "application/vnd.github+json")
-                    .addHeader("User-Agent", "MSLX-Android/1.2.10")
+                    .addHeader("User-Agent", "MSLX-Android/1.2.11")
                     .build()
                 chain.proceed(request)
             }
@@ -149,17 +149,19 @@ object ApiClient {
     }
 
     /**
-     * 规范化 Daemon 地址并强制 HTTPS：
+     * 规范化 Daemon 地址：
      * - trim + trimEnd('/')；
      * - 无协议前缀（忽略大小写）时补 https://；
-     * - 明文 http:// 自动升级为 https://（App 禁止明文连接，保证 API Key 不被明文传输）。
+     * - allowHttp=false（默认，安全）：明文 http:// 自动升级为 https://；
+     * - allowHttp=true（用户勾选并确认后）：保留用户输入的 http:// 明文地址，
+     *   仅用于完全可信的内网场景（明文传输有被窃听/篡改风险）。
      */
-    fun normalizeDaemonUrl(input: String): String {
+    fun normalizeDaemonUrl(input: String, allowHttp: Boolean = false): String {
         var url = input.trim().trimEnd('/')
         if (url.isNotBlank() && !url.startsWith("http://", ignoreCase = true) && !url.startsWith("https://", ignoreCase = true)) {
             url = "https://$url"
         }
-        if (url.startsWith("http://", ignoreCase = true)) {
+        if (!allowHttp && url.startsWith("http://", ignoreCase = true)) {
             url = "https://" + url.substringAfter("://", url)
         }
         return url

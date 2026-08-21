@@ -32,7 +32,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             // 立即重新配置 repository，使后续请求指向新 Daemon（无需重启）
             val daemon = store.settingsFlow.first().daemons.firstOrNull { it.id == id }
             if (daemon != null) {
-                repository.configure(daemon.baseUrl, daemon.apiKey)
+                repository.configure(daemon.baseUrl, daemon.apiKey, daemon.allowHttp)
             }
             store.setActiveDaemon(id)
         }

@@ -21,6 +21,8 @@ data class DaemonConfig(
     val name: String = "",
     val baseUrl: String = "",
     val apiKey: String = "",
+    /** 允许 http:// 明文连接（勾选并经警告确认后才会保留明文地址）。 */
+    val allowHttp: Boolean = false,
 )
 
 enum class ThemeMode { DYNAMIC, SEED }

@@ -87,16 +87,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     protocol = protocolLabel(daemon.baseUrl),
                 )
             }
-            // 强制 HTTPS：已保存地址可能仍是旧 http，先归一化为 https 再连接
-            val httpsUrl = ApiClient.normalizeDaemonUrl(daemon.baseUrl)
+            // 地址归一化：默认强制 HTTPS；该 Daemon 勾选"允许 HTTP"时保留明文地址
+            val normalizedUrl = ApiClient.normalizeDaemonUrl(daemon.baseUrl, daemon.allowHttp)
             val connected = runCatching {
-                repository.configure(httpsUrl, daemon.apiKey)
+                repository.configure(normalizedUrl, daemon.apiKey, daemon.allowHttp)
                 repository.verify()
             }.isSuccess
             if (connected) {
-                // 若地址被升级为 https，同步回写存储，避免下次仍用 http
-                if (httpsUrl != daemon.baseUrl) {
-                    store.upsertDaemon(daemon.copy(baseUrl = httpsUrl))
+                // 若地址被规范化（如 http 升级 https），同步回写存储，避免下次仍用旧地址
+                if (normalizedUrl != daemon.baseUrl) {
+                    store.upsertDaemon(daemon.copy(baseUrl = normalizedUrl))
                 }
                 _state.update { it.copy(connecting = false, connected = true, error = null) }
                 refreshMetrics()

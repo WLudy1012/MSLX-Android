@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -71,6 +72,7 @@ fun ConnectScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showKey by remember { mutableStateOf(false) }
     var failMessage by remember { mutableStateOf<String?>(null) }
+    var showHttpWarning by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.connected.collect { onConnected() }
@@ -164,6 +166,30 @@ fun ConnectScreen(
             )
             Spacer(Modifier.height(4.dp))
 
+            // 允许 HTTP 明文连接勾选框
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Checkbox(
+                    checked = state.allowHttp,
+                    onCheckedChange = { checked ->
+                        if (checked) {
+                            // 勾选时弹警告，5 秒后可确认；取消则保持不勾选
+                            showHttpWarning = true
+                        } else {
+                            viewModel.onAllowHttpChange(false)
+                        }
+                    },
+                )
+                Text(
+                    text = "允许 HTTP 明文连接（不推荐）",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+
             if (state.error != null) {
                 Spacer(Modifier.height(8.dp))
                 Text(
@@ -242,6 +268,62 @@ fun ConnectScreen(
                         onAutoConnectFailed()
                     },
                 ) { Text("确定") }
+            },
+        )
+    }
+
+    // 允许 HTTP 明文连接警告（5 秒倒计时后可确认）
+    if (showHttpWarning) {
+        var countdown by remember { mutableStateOf(5) }
+        LaunchedEffect(Unit) {
+            while (countdown > 0) {
+                kotlinx.coroutines.delay(1000)
+                countdown--
+            }
+        }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showHttpWarning = false },
+            title = {
+                Text(
+                    text = "安全警告：明文连接风险",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                )
+            },
+            text = {
+                Text(
+                    text = "您正在尝试启用 HTTP 明文连接。这是最坏的连接方式，存在以下严重风险：\n\n" +
+                        "1. API Key 将明文传输，同一网络中的任何设备都可抓包窃取您的完整密钥；\n" +
+                        "2. 攻击者可实施中间人攻击，篡改您发送的命令与文件，向服务器注入恶意指令；\n" +
+                        "3. 窃取密钥与篡改流量后，攻击者可以完全接管您的守护进程与所有 Minecraft 服务器，\n" +
+                        "   包括删除数据、安装恶意插件、读取玩家隐私；\n" +
+                        "4. 由此造成的一切损失（数据丢失、服务瘫痪、设备被控）均由您自行承担。\n\n" +
+                        "强烈建议使用 HTTPS（MSLX 自签证书或自备证书）。仅当您确认网络环境完全可信时，\n" +
+                        "才应继续。请仔细阅读以上内容，5 秒后方可确认。",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = countdown <= 0,
+                    onClick = {
+                        viewModel.onAllowHttpChange(true)
+                        showHttpWarning = false
+                    },
+                ) {
+                    Text(
+                        if (countdown > 0) "请等待 $countdown 秒" else "我已知晓风险，仍然继续",
+                        color = if (countdown > 0) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        },
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showHttpWarning = false }) { Text("取消") }
             },
         )
     }

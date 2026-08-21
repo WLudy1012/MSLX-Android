@@ -20,6 +20,7 @@ data class ConnectUiState(
     val name: String = "",
     val baseUrl: String = "",
     val apiKey: String = "",
+    val allowHttp: Boolean = false,
     val loading: Boolean = false,
     val autoChecking: Boolean = false,
     val error: String? = null,
@@ -58,6 +59,7 @@ class ConnectViewModel(
                             name = target.name,
                             baseUrl = target.baseUrl,
                             apiKey = target.apiKey,
+                            allowHttp = target.allowHttp,
                         )
                     }
                     // 已有激活的 Daemon → 自动连接
@@ -70,10 +72,11 @@ class ConnectViewModel(
     fun onNameChange(value: String) = _state.update { it.copy(name = value, error = null) }
     fun onBaseUrlChange(value: String) = _state.update { it.copy(baseUrl = value, error = null) }
     fun onApiKeyChange(value: String) = _state.update { it.copy(apiKey = value, error = null) }
+    fun onAllowHttpChange(value: Boolean) = _state.update { it.copy(allowHttp = value, error = null) }
 
     fun connect() {
         val s = _state.value
-        val baseUrl = normalizeBaseUrl(s.baseUrl)
+        val baseUrl = normalizeBaseUrl(s.baseUrl, s.allowHttp)
         val apiKey = s.apiKey.trim()
         if (baseUrl.isBlank() || apiKey.isBlank()) {
             _state.update { it.copy(error = "请填写完整的 Daemon 地址和 API Key。") }
@@ -85,16 +88,16 @@ class ConnectViewModel(
             name = name,
             baseUrl = baseUrl,
             apiKey = apiKey,
+            allowHttp = s.allowHttp,
         )
         doConnect(config)
     }
 
     /**
-     * 规范化 Daemon 地址并强制 HTTPS：
-     * - 无协议前缀时补 https://；
-     * - http:// 明文自动升级为 https://（App 禁止明文连接）。
+     * 规范化 Daemon 地址：默认强制 HTTPS（http 自动升级）；用户勾选"允许 HTTP"后保留明文地址。
      */
-    private fun normalizeBaseUrl(input: String): String = ApiClient.normalizeDaemonUrl(input)
+    private fun normalizeBaseUrl(input: String, allowHttp: Boolean): String =
+        ApiClient.normalizeDaemonUrl(input, allowHttp)
 
     private fun doConnect(config: DaemonConfig, auto: Boolean = false) {
         if (_state.value.loading) return
@@ -102,16 +105,19 @@ class ConnectViewModel(
         viewModelScope.launch {
             val duplicate = store.settingsFlow.first().daemons.any {
                 it.id != config.id &&
-                    ApiClient.normalizeDaemonUrl(it.baseUrl).equals(ApiClient.normalizeDaemonUrl(config.baseUrl), ignoreCase = true) &&
+                    ApiClient.normalizeDaemonUrl(it.baseUrl, it.allowHttp).equals(
+                        ApiClient.normalizeDaemonUrl(config.baseUrl, config.allowHttp),
+                        ignoreCase = true,
+                    ) &&
                     it.apiKey == config.apiKey
             }
             if (duplicate) {
                 _state.update { it.copy(loading = false, autoChecking = false, error = "同一 API Key 已连接此 Daemon，不能重复添加。") }
                 return@launch
             }
-            // 强制 HTTPS：地址已由 normalize 升级为 https，直接尝试连接
+            // 地址已由 normalize 规范化（默认升级 https，勾选允许 HTTP 后保留明文）
             val result = runCatching {
-                repository.configure(config.baseUrl, config.apiKey)
+                repository.configure(config.baseUrl, config.apiKey, config.allowHttp)
                 repository.verify()
             }
             if (result.isSuccess) {
