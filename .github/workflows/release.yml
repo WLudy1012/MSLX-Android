@@ -77,7 +77,7 @@ jobs:
         run: |
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)
           {
-            echo "# MSLX-Android ${{ github.ref_name }}"
+            echo "# MSLX_APP-Android ${{ github.ref_name }}"
             echo ""
             if [ -n "$PREV_TAG" ]; then
               echo "自 $PREV_TAG 以来的提交："
