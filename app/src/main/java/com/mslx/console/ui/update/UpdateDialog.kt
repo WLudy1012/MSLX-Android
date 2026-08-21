@@ -58,7 +58,8 @@ private fun UpdateDialog(
     onSkip: () -> Unit,
 ) {
     AlertDialog(
-        onDismissRequest = onSkip,
+        // 强制更新时不可通过点击外部/返回键关闭，必须更新后才能继续使用
+        onDismissRequest = { if (!update.forceUpdate) onSkip() },
         icon = {
             Icon(
                 imageVector = Icons.Filled.Build,
@@ -68,7 +69,11 @@ private fun UpdateDialog(
         },
         title = {
             Text(
-                text = "发现新版本 v${update.version}",
+                text = if (update.forceUpdate) {
+                    "必须更新到 v${update.version}"
+                } else {
+                    "发现新版本 v${update.version}"
+                },
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -79,6 +84,14 @@ private fun UpdateDialog(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
             ) {
+                if (update.forceUpdate) {
+                    Text(
+                        text = "此版本必须更新，否则无法继续使用。",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                }
                 Text(
                     text = if (currentVersion.isBlank()) {
                         "更新内容："
@@ -105,11 +118,13 @@ private fun UpdateDialog(
         },
         confirmButton = {
             TextButton(onClick = onUpdate) {
-                Text("更新", color = MaterialTheme.colorScheme.primary)
+                Text(if (update.forceUpdate) "立即更新" else "更新", color = MaterialTheme.colorScheme.primary)
             }
         },
         dismissButton = {
-            TextButton(onClick = onSkip) { Text("跳过") }
+            if (!update.forceUpdate) {
+                TextButton(onClick = onSkip) { Text("跳过") }
+            }
         },
     )
 }

@@ -32,6 +32,7 @@ data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SEED,
     val seedColor: Long = 0xFF00838F,
     val onboarded: Boolean = false,
+    val disclaimerAccepted: Boolean = false,
 ) {
     val activeDaemon: DaemonConfig?
         get() = daemons.firstOrNull { it.id == activeDaemonId }
@@ -50,6 +51,7 @@ class SettingsStore(private val context: Context) {
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val SEED_COLOR = longPreferencesKey("seed_color")
         val ONBOARDED = booleanPreferencesKey("onboarded")
+        val DISCLAIMER_ACCEPTED = booleanPreferencesKey("disclaimer_accepted")
     }
 
     val settingsFlow: Flow<AppSettings> = context.settingsDataStore.data.map { prefs ->
@@ -59,17 +61,19 @@ class SettingsStore(private val context: Context) {
             themeMode = if (prefs[Keys.THEME_MODE] == "dynamic") ThemeMode.DYNAMIC else ThemeMode.SEED,
             seedColor = prefs[Keys.SEED_COLOR] ?: 0xFF00838F,
             onboarded = prefs[Keys.ONBOARDED] ?: false,
+            disclaimerAccepted = prefs[Keys.DISCLAIMER_ACCEPTED] ?: false,
         )
     }
 
     suspend fun update(transform: (AppSettings) -> AppSettings) = mutex.withLock {
         val next = transform(settingsFlow.first())
         context.settingsDataStore.edit { prefs ->
-            prefs[Keys.DAEMONS] = gson.toJson(next.daemons)
+            prefs[Keys.DAEMONS] = encodeDaemons(next.daemons)
             prefs[Keys.ACTIVE_DAEMON] = next.activeDaemonId ?: ""
             prefs[Keys.THEME_MODE] = if (next.themeMode == ThemeMode.SEED) "seed" else "dynamic"
             prefs[Keys.SEED_COLOR] = next.seedColor
             prefs[Keys.ONBOARDED] = next.onboarded
+            prefs[Keys.DISCLAIMER_ACCEPTED] = next.disclaimerAccepted
         }
     }
 
@@ -97,7 +101,17 @@ class SettingsStore(private val context: Context) {
 
     suspend fun markOnboarded() = update { it.copy(onboarded = true) }
 
+    /** 用户已同意第三方免责声明。 */
+    suspend fun acceptDisclaimer() = update { it.copy(disclaimerAccepted = true) }
+
+    private fun encodeDaemons(daemons: List<DaemonConfig>): String =
+        gson.toJson(daemons.map { it.copy(apiKey = CryptoManager.encrypt(it.apiKey) ?: it.apiKey) })
+
     private fun decodeDaemons(json: String): List<DaemonConfig> = runCatching {
         gson.fromJson<List<DaemonConfig>>(json, object : TypeToken<List<DaemonConfig>>() {}.type)
+            .map {
+                // 解密失败（如备份恢复后 Keystore 密钥丢失）时清空 apiKey，避免把密文当明文
+                it.copy(apiKey = CryptoManager.decrypt(it.apiKey).orEmpty())
+            }
     }.getOrDefault(emptyList())
 }

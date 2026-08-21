@@ -39,6 +39,23 @@ data class SystemInfo(
     @SerializedName("memoryTotal") val memoryTotal: Double? = null,
 )
 
+/**
+ * SignalR /api/hubs/system 的 ReceiveSystemStats 节点负载(本地节点)。
+ * 单位约定：cpu/memUsage 为百分比(0-100)，memTotal/memUsed 为 MB。
+ */
+data class NodeStatsPayload(
+    @SerializedName("cpu") val cpu: Double? = null,
+    @SerializedName("memTotal") val memTotal: Double? = null,
+    @SerializedName("memUsed") val memUsed: Double? = null,
+    @SerializedName("memUsage") val memUsage: Double? = null,
+    @SerializedName("timestamp") val timestamp: String? = null,
+)
+
+/** SignalR ReceiveSystemStats 的完整载荷：{ local: NodeStatsPayload, slaves: {...} } */
+data class SystemStatsEnvelope(
+    @SerializedName("local") val local: NodeStatsPayload? = null,
+)
+
 /** GET /api/java/list 的 data 数组元素(本地 Java 环境)。 */
 data class LocalJava(
     @SerializedName("path") val path: String = "",

@@ -90,19 +90,11 @@ class ConnectViewModel(
     }
 
     /**
-     * 规范化 Daemon 地址：去除首尾空白/斜杠。
-     * 已带 http:// 或 https:// 前缀（大小写不敏感）则原样保留；
-     * 完全未写协议时才补默认 http://。
+     * 规范化 Daemon 地址并强制 HTTPS：
+     * - 无协议前缀时补 https://；
+     * - http:// 明文自动升级为 https://（App 禁止明文连接）。
      */
-    private fun normalizeBaseUrl(input: String): String {
-        var url = input.trim().trimEnd('/')
-        val lower = url.lowercase()
-        val hasScheme = lower.startsWith("http://") || lower.startsWith("https://")
-        if (url.isNotBlank() && !hasScheme) {
-            url = "http://$url"
-        }
-        return url
-    }
+    private fun normalizeBaseUrl(input: String): String = ApiClient.normalizeDaemonUrl(input)
 
     private fun doConnect(config: DaemonConfig, auto: Boolean = false) {
         if (_state.value.loading) return
@@ -117,6 +109,7 @@ class ConnectViewModel(
                 _state.update { it.copy(loading = false, autoChecking = false, error = "同一 API Key 已连接此 Daemon，不能重复添加。") }
                 return@launch
             }
+            // 强制 HTTPS：地址已由 normalize 升级为 https，直接尝试连接
             val result = runCatching {
                 repository.configure(config.baseUrl, config.apiKey)
                 repository.verify()

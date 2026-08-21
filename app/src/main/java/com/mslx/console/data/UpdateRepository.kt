@@ -17,6 +17,8 @@ data class AppUpdateInfo(
     val apkName: String,
     /** APK 大小（字节）。 */
     val apkSize: Long,
+    /** 是否强制更新：Release 说明包含"强制更新"标记时，不允许跳过。 */
+    val forceUpdate: Boolean = false,
 )
 
 /**
@@ -48,6 +50,7 @@ class UpdateRepository {
             downloadUrl = downloadUrl,
             apkName = apk?.name ?: "app-release.apk",
             apkSize = apk?.size ?: 0,
+            forceUpdate = release.body.orEmpty().contains("强制更新", ignoreCase = true),
         )
     }
 

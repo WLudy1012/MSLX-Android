@@ -95,16 +95,16 @@ fun CreateInstanceScreen(
     val jarLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
             scope.launch {
-                val (bytes, name) = readFile(context, uri)
-                viewModel.uploadCore(bytes, name)
+                val name = queryDisplayName(context, uri)
+                viewModel.uploadCore(uri, name)
             }
         }
     }
     val packageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
             scope.launch {
-                val (bytes, name) = readFile(context, uri)
-                viewModel.uploadPackage(bytes, name)
+                val name = queryDisplayName(context, uri)
+                viewModel.uploadPackage(uri, name)
             }
         }
     }
@@ -679,14 +679,16 @@ private fun SuccessContent(
     }
 }
 
-private suspend fun readFile(context: Context, uri: Uri): Pair<ByteArray, String> = withContext(Dispatchers.IO) {
-    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: byteArrayOf()
+/** 查询 Content URI 的文件显示名（不做读取，避免大文件占用内存）。 */
+private suspend fun queryDisplayName(context: Context, uri: Uri): String = withContext(Dispatchers.IO) {
     var name = "file"
-    context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-        if (cursor.moveToFirst()) {
-            val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (idx >= 0) name = cursor.getString(idx) ?: name
+    runCatching {
+        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (idx >= 0) name = cursor.getString(idx) ?: name
+            }
         }
     }
-    bytes to name
+    name
 }

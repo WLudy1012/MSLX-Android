@@ -140,7 +140,7 @@ fun ConnectScreen(
                 value = state.baseUrl,
                 onValueChange = viewModel::onBaseUrlChange,
                 label = { Text("Daemon 地址") },
-                placeholder = { Text("http://192.168.1.100:1027") },
+                placeholder = { Text("https://192.168.1.100:1027") },
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth(),
@@ -216,8 +216,8 @@ fun ConnectScreen(
                     Spacer(Modifier.size(8.dp))
                     Text(
                         text = "提示：手机访问时请填写运行 MSLX 守护程序的电脑在内网中的 IP 地址，" +
-                            "例如 http://192.168.1.100:1027。请确保手机与电脑处于同一网络，" +
-                            "且守护程序允许外部访问。",
+                            "例如 https://192.168.1.100:1027。请确保手机与电脑处于同一网络，" +
+                            "且守护程序已启用 HTTPS（可使用 MSLX 自签证书或自行准备的证书）。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

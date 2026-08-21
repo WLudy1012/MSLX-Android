@@ -5,7 +5,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mslx.console.MSLXApplication
 import com.mslx.console.data.model.InstanceSummary
+import com.mslx.console.data.model.NodeStatsPayload
 import com.mslx.console.data.model.SystemInfo
+import com.mslx.console.data.remote.ApiClient
+import com.mslx.console.data.remote.SystemMonitorClient
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,6 +17,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** 开服/关服通知条目。 */
 data class ServerNotification(
@@ -50,14 +55,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     /** 上次轮询到的实例状态快照（id -> status），用于检测开服/关服变化。 */
     private val lastStatus = mutableMapOf<Long, Int>()
 
+    private var monitorClient: SystemMonitorClient? = null
+
     init {
         autoConnect()
-        // 周期性刷新负载与实例状态
+        // 周期性刷新实例状态（负载走 SignalR 实时推送）
         viewModelScope.launch {
             while (isActive) {
-                delay(10_000)
+                delay(15_000)
                 if (_state.value.connected) {
-                    refreshMetrics()
                     refreshInstances()
                 }
             }
@@ -81,20 +87,27 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     protocol = protocolLabel(daemon.baseUrl),
                 )
             }
-            val result = runCatching {
-                repository.configure(daemon.baseUrl, daemon.apiKey)
+            // 强制 HTTPS：已保存地址可能仍是旧 http，先归一化为 https 再连接
+            val httpsUrl = ApiClient.normalizeDaemonUrl(daemon.baseUrl)
+            val connected = runCatching {
+                repository.configure(httpsUrl, daemon.apiKey)
                 repository.verify()
-            }
-            if (result.isSuccess) {
+            }.isSuccess
+            if (connected) {
+                // 若地址被升级为 https，同步回写存储，避免下次仍用 http
+                if (httpsUrl != daemon.baseUrl) {
+                    store.upsertDaemon(daemon.copy(baseUrl = httpsUrl))
+                }
                 _state.update { it.copy(connecting = false, connected = true, error = null) }
                 refreshMetrics()
                 refreshInstances()
+                startMonitor()
             } else {
                 _state.update {
                     it.copy(
                         connecting = false,
                         connected = false,
-                        error = result.exceptionOrNull()?.message ?: "连接失败",
+                        error = "连接失败：无法连接守护进程，请检查地址、协议与 API Key",
                     )
                 }
             }
@@ -104,17 +117,40 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     /** 重新连接（主页"重试"按钮）。 */
     fun retryConnect() = autoConnect()
 
-    /** 刷新 Daemon 基础状态(版本/系统/负载)。 */
+    /** 启动 SignalR 系统负载监视（/api/hubs/system，2s 推送）。 */
+    private fun startMonitor() {
+        if (monitorClient != null) return
+        val client = repository.createSystemMonitorClient(::onSystemStats)
+        monitorClient = client
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching { client.connect() }
+        }
+    }
+
+    /** 收到负载推送：memTotal/memUsed 单位为 MB，换算为 GB 展示。 */
+    private fun onSystemStats(stats: NodeStatsPayload) {
+        val base = _state.value.systemInfo ?: SystemInfo()
+        _state.update {
+            it.copy(
+                systemInfo = base.copy(
+                    cpuUsage = stats.cpu,
+                    memoryUsage = stats.memUsage,
+                    memoryUsed = stats.memUsed?.let { mb -> mb / 1024.0 },
+                    memoryTotal = stats.memTotal?.let { mb -> mb / 1024.0 },
+                ),
+            )
+        }
+    }
+
+    /** 刷新 Daemon 基础状态(版本/系统信息，不含负载)。 */
     fun refreshMetrics() {
         viewModelScope.launch {
             repository.getStatus().onSuccess { status ->
                 _state.update {
                     it.copy(
-                        systemInfo = status.systemInfo ?: SystemInfo(
-                            cpuUsage = status.cpuUsage,
-                            memoryUsage = status.memoryUsage,
-                            memoryUsed = status.memoryUsed,
-                            memoryTotal = status.memoryTotal,
+                        systemInfo = (it.systemInfo ?: SystemInfo()).copy(
+                            osType = status.systemInfo?.osType ?: it.systemInfo?.osType,
+                            osArchitecture = status.systemInfo?.osArchitecture ?: it.systemInfo?.osArchitecture,
                         ),
                         daemonVersion = status.version.orEmpty(),
                     )
@@ -182,5 +218,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         baseUrl.startsWith("https://", ignoreCase = true) -> "HTTPS / WSS"
         baseUrl.startsWith("http://", ignoreCase = true) -> "HTTP / WS"
         else -> "未知"
+    }
+
+    override fun onCleared() {
+        val client = monitorClient
+        monitorClient = null
+        if (client != null) {
+            viewModelScope.launch(Dispatchers.IO) { client.disconnect() }
+        }
+        super.onCleared()
     }
 }

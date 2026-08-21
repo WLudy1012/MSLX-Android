@@ -5,19 +5,21 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <!--
-        usesCleartextTraffic 允许通过 http:// 明文访问内网的 MSLX Daemon
-        (默认地址形如 http://192.168.x.x:1027)。如你的 Daemon 已启用 HTTPS，
-        可在不改变功能的情况下关闭此项以增强安全性。
+        usesCleartextTraffic=false：禁止 http:// 明文连接。
+        为保证 API Key 不被明文传输，本应用仅允许 HTTPS/WSS 连接 Daemon
+        （Daemon 需启用 HTTPS，可用 MSLX 自签证书或自行准备证书）。
     -->
     <application
         android:name=".MSLXApplication"
         android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.MSLXConsole"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="false">
 
         <activity
             android:name=".MainActivity"

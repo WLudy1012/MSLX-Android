@@ -130,15 +130,12 @@ fun ConsoleScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = state.instanceName,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                        )
-                        StatusBadge(status = state.status, statusText = state.statusText)
-                    }
+                    Text(
+                        text = state.instanceName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

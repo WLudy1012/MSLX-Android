@@ -1,6 +1,8 @@
 package com.mslx.console.ui.create
 
 import android.app.Application
+import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mslx.console.MSLXApplication
@@ -349,13 +351,19 @@ class CreateInstanceViewModel(application: Application) : AndroidViewModel(appli
         _state.update { it.copy(core = "", coreUrl = "", coreSha256 = "", coreFileKey = "", onlineGameVersion = "") }
     }
 
-    fun uploadCore(bytes: ByteArray, fileName: String) {
+    fun uploadCore(uri: Uri, fileName: String) {
         if (_state.value.uploading) return
         _state.update { it.copy(uploading = true, uploadProgress = 0, uploadedFileName = fileName) }
         viewModelScope.launch {
-            repository.uploadCoreFile(bytes) { progress ->
-                _state.update { it.copy(uploadProgress = progress) }
-            }.fold(
+            val resolver = getApplication<Application>().contentResolver
+            val size = queryContentLength(resolver, uri)
+            repository.uploadFileStream(
+                input = { resolver.openInputStream(uri) ?: error("无法打开文件") },
+                totalBytes = size,
+                onProgress = { progress ->
+                    _state.update { it.copy(uploadProgress = progress) }
+                },
+            ).fold(
                 onSuccess = { key ->
                     _state.update { it.copy(uploading = false, uploadProgress = 100, coreFileKey = key, core = fileName, coreUrl = "", coreSha256 = "") }
                     _message.tryEmit("核心文件上传成功")
@@ -375,13 +383,19 @@ class CreateInstanceViewModel(application: Application) : AndroidViewModel(appli
         _state.update { it.copy(coreFileKey = "", core = "", uploadProgress = 0, uploadedFileName = "") }
     }
 
-    fun uploadPackage(bytes: ByteArray, fileName: String) {
+    fun uploadPackage(uri: Uri, fileName: String) {
         if (_state.value.uploading) return
         _state.update { it.copy(uploading = true, uploadProgress = 0, uploadedFileName = fileName) }
         viewModelScope.launch {
-            repository.uploadCoreFile(bytes) { progress ->
-                _state.update { it.copy(uploadProgress = progress) }
-            }.fold(
+            val resolver = getApplication<Application>().contentResolver
+            val size = queryContentLength(resolver, uri)
+            repository.uploadFileStream(
+                input = { resolver.openInputStream(uri) ?: error("无法打开文件") },
+                totalBytes = size,
+                onProgress = { progress ->
+                    _state.update { it.copy(uploadProgress = progress) }
+                },
+            ).fold(
                 onSuccess = { key ->
                     _state.update { it.copy(uploading = false, uploadProgress = 100, packageFileKey = key) }
                     _message.tryEmit("整合包上传成功")
@@ -392,6 +406,17 @@ class CreateInstanceViewModel(application: Application) : AndroidViewModel(appli
             )
         }
     }
+
+    /** 查询 Content URI 指向的文件大小；查询不到时返回 0（进度按已上传字节计算）。 */
+    private fun queryContentLength(resolver: android.content.ContentResolver, uri: Uri): Long =
+        runCatching {
+            resolver.query(uri, null, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val idx = cursor.getColumnIndex(OpenableColumns.SIZE)
+                    if (idx >= 0 && !cursor.isNull(idx)) cursor.getLong(idx) else 0L
+                } else 0L
+            } ?: 0L
+        }.getOrDefault(0L)
 
     private fun computedJava(): String = with(_state.value) {
         when (javaType) {

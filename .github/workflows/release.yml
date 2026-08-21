@@ -91,6 +91,23 @@ jobs:
             echo ""
           } > release_notes.md
 
+      # 计算 APK SHA256 并写入 release notes，供用户校验文件完整性
+      - name: Compute APK SHA256
+        run: |
+          SHA=$(sha256sum app/build/outputs/apk/release/app-release.apk | awk '{print $1}')
+          {
+            echo ""
+            echo "## 校验"
+            echo ""
+            echo "APK 文件：\`app-release.apk\`"
+            echo "SHA-256：\`$SHA\`"
+            echo ""
+            echo "校验命令（Windows PowerShell）："
+            echo "\`\`\`powershell"
+            echo "Get-FileHash app-release.apk -Algorithm SHA256"
+            echo "\`\`\`"
+          } >> release_notes.md
+
       - name: Upload APK to release
         uses: softprops/action-gh-release@v2
         with:

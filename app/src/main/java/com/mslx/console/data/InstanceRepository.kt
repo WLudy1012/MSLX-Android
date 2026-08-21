@@ -29,6 +29,9 @@ import com.google.gson.JsonObject
 import com.mslx.console.data.remote.ApiClient
 import com.mslx.console.data.remote.ConsoleHubClient
 import com.mslx.console.data.remote.MslxApi
+import com.mslx.console.data.remote.SystemMonitorClient
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -156,18 +159,41 @@ class InstanceRepository {
         requireApi().deleteUpload(uploadId)
     }
 
-    /** 上传一个文件并返回可用于 createServer 的 fileKey(uploadId)。 */
-    suspend fun uploadCoreFile(bytes: ByteArray, onProgress: (Int) -> Unit): Result<String> = runCatching {
+    /**
+     * 流式分块上传一个文件，返回可用于 createServer 的 fileKey(uploadId)。
+     * 从 input 流逐块读取(每块 10MB)上传，避免 readBytes() 把整个文件读入内存；
+     * 流读取在 IO 线程执行，避免阻塞主线程。
+     */
+    suspend fun uploadFileStream(
+        input: () -> java.io.InputStream,
+        totalBytes: Long,
+        onProgress: (Int) -> Unit,
+    ): Result<String> = runCatching {
         val uploadId = uploadInit().getOrThrow()
         val chunkSize = 10 * 1024 * 1024
-        val total = if (bytes.isEmpty()) 1 else ((bytes.size + chunkSize - 1) / chunkSize)
-        for (i in 0 until total) {
-            val start = i * chunkSize
-            val end = minOf(bytes.size, start + chunkSize)
-            uploadChunk(uploadId, i, bytes.copyOfRange(start, end)).getOrThrow()
-            onProgress(((i + 1) * 100 / total).coerceIn(0, 100))
+        val buffer = ByteArray(chunkSize)
+        var index = 0
+        var uploaded = 0L
+        withContext(Dispatchers.IO) {
+            input().use { stream ->
+                while (true) {
+                    val read = stream.read(buffer)
+                    if (read < 0) break
+                    if (read == 0) continue
+                    val chunk = buffer.copyOf(read)
+                    uploadChunk(uploadId, index, chunk).getOrThrow()
+                    index++
+                    uploaded += read
+                    onProgress(((uploaded * 100) / maxOf(totalBytes, 1L)).toInt().coerceIn(0, 100))
+                }
+            }
         }
-        uploadFinish(uploadId, total).getOrThrow()
+        if (index == 0) {
+            // 空文件也至少传一个空块，保证 finish 时总块数 >= 1
+            uploadChunk(uploadId, 0, byteArrayOf()).getOrThrow()
+            index = 1
+        }
+        uploadFinish(uploadId, index).getOrThrow()
         uploadId
     }
 
@@ -357,4 +383,10 @@ class InstanceRepository {
         onEulaRequired: () -> Unit,
     ): ConsoleHubClient =
         ConsoleHubClient(baseUrl, apiKey, instanceId, onLog, onCommandResult, onEulaRequired)
+
+    /** 创建系统负载监视客户端(订阅 /api/hubs/system 的 ReceiveSystemStats)。 */
+    fun createSystemMonitorClient(
+        onStats: (com.mslx.console.data.model.NodeStatsPayload) -> Unit,
+    ): SystemMonitorClient =
+        SystemMonitorClient(baseUrl, apiKey, onStats)
 }
