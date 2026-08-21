@@ -16,6 +16,7 @@ import com.mslx.console.data.AppSettings
 import com.mslx.console.ui.connect.ConnectScreen
 import com.mslx.console.ui.console.ConsoleScreen
 import com.mslx.console.ui.create.CreateInstanceScreen
+import com.mslx.console.ui.home.HomeScreen
 import com.mslx.console.ui.instances.InstancesScreen
 import com.mslx.console.ui.settings.InstanceSettingsScreen
 import com.mslx.console.ui.settings.FileManagerScreen
@@ -30,6 +31,7 @@ object Routes {
     const val SPLASH = "splash"
     const val WELCOME = "welcome"
     const val CONNECT = "connect?auto={autoConnect}&daemonId={daemonId}"
+    const val HOME = "home"
     const val INSTANCES = "instances"
     const val SETTINGS = "settings"
     const val NEW_INSTANCE = "newInstance"
@@ -56,7 +58,7 @@ fun AppNavHost(
 ) {
     fun navigateTopLevel(route: String) {
         navController.navigate(route) {
-            popUpTo(Routes.INSTANCES) { saveState = true }
+            popUpTo(Routes.HOME) { saveState = true }
             launchSingleTop = true
             restoreState = true
         }
@@ -76,7 +78,7 @@ fun AppNavHost(
             val latest by rememberUpdatedState(settings)
             SplashScreen(
                 onFinished = {
-                    val dest = if (latest.onboarded) Routes.connect(true) else Routes.WELCOME
+                    val dest = if (latest.onboarded) Routes.HOME else Routes.WELCOME
                     navController.navigate(dest) {
                         popUpTo(Routes.SPLASH) { inclusive = true }
                         launchSingleTop = true
@@ -88,10 +90,21 @@ fun AppNavHost(
         composable(Routes.WELCOME) {
             WelcomeScreen(
                 onStart = {
-                    navController.navigate(Routes.connect(true)) {
+                    navController.navigate(Routes.HOME) {
                         popUpTo(Routes.WELCOME) { inclusive = true }
                         launchSingleTop = true
                     }
+                },
+            )
+        }
+
+        composable(Routes.HOME) {
+            HomeScreen(
+                onOpenInstances = { navigateTopLevel(Routes.INSTANCES) },
+                onOpenNewInstance = { navigateTopLevel(Routes.NEW_INSTANCE) },
+                onOpenSettings = { navigateTopLevel(Routes.SETTINGS) },
+                onOpenConnect = {
+                    navController.navigate(Routes.connect(false)) { launchSingleTop = true }
                 },
             )
         }
@@ -113,15 +126,16 @@ fun AppNavHost(
             val daemonId = entry.arguments?.getString("daemonId")?.takeIf { it.isNotBlank() }
             ConnectScreen(
                 onConnected = {
-                    navController.navigate(Routes.INSTANCES) {
+                    // 连接成功：回到主页，由主页加载负载与实例
+                    navController.navigate(Routes.HOME) {
                         popUpTo(navController.graph.id) { inclusive = true }
                         launchSingleTop = true
                     }
                 },
                 onBack = { navController.popBackStack() },
-                // 自动连接失败：回到手动连接页，鉴权失败时不得进入实例主页
+                // 自动连接失败：回主页显示"Daemon 未连接"
                 onAutoConnectFailed = {
-                    navController.navigate(Routes.connect(false, daemonId)) {
+                    navController.navigate(Routes.HOME) {
                         popUpTo(navController.graph.id) { inclusive = true }
                         launchSingleTop = true
                     }
@@ -133,6 +147,7 @@ fun AppNavHost(
 
         composable(Routes.INSTANCES) {
             InstancesScreen(
+                onOpenHome = { navigateTopLevel(Routes.HOME) },
                 onOpenSettings = {
                     navigateTopLevel(Routes.SETTINGS)
                 },
@@ -147,6 +162,7 @@ fun AppNavHost(
 
         composable(Routes.NEW_INSTANCE) {
             CreateInstanceScreen(
+                onOpenHome = { navigateTopLevel(Routes.HOME) },
                 onOpenInstances = { navigateTopLevel(Routes.INSTANCES) },
                 onOpenSettings = { navigateTopLevel(Routes.SETTINGS) },
                 onOpenConsole = { id ->
@@ -157,6 +173,7 @@ fun AppNavHost(
 
         composable(Routes.SETTINGS) {
             SettingsScreen(
+                onOpenHome = { navigateTopLevel(Routes.HOME) },
                 onOpenInstances = {
                     navigateTopLevel(Routes.INSTANCES)
                 },

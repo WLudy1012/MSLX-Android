@@ -26,7 +26,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
@@ -38,8 +37,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -64,12 +61,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mslx.console.data.DaemonConfig
 import com.mslx.console.data.ThemeMode
+import com.mslx.console.ui.MainBottomNav
+import com.mslx.console.ui.TopPage
 import com.mslx.console.ui.theme.PresetColors
 import com.mslx.console.ui.update.UpdateViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
+    onOpenHome: () -> Unit,
     onOpenInstances: () -> Unit,
     onOpenNewInstance: () -> Unit,
     onAddDaemon: () -> Unit,
@@ -104,11 +104,17 @@ fun SettingsScreen(
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                NavigationBarItem(selected = false, onClick = onOpenInstances, icon = { Icon(Icons.Filled.List, null) }, label = { Text("实例") })
-                NavigationBarItem(selected = false, onClick = onOpenNewInstance, icon = { Icon(Icons.Filled.Add, null) }, label = { Text("新建") })
-                NavigationBarItem(selected = true, onClick = {}, icon = { Icon(Icons.Filled.Settings, null) }, label = { Text("设置") })
-            }
+            MainBottomNav(
+                current = TopPage.SETTINGS,
+                onNavigate = { page ->
+                    when (page) {
+                        TopPage.HOME -> onOpenHome()
+                        TopPage.INSTANCES -> onOpenInstances()
+                        TopPage.NEW_INSTANCE -> onOpenNewInstance()
+                        TopPage.SETTINGS -> {}
+                    }
+                },
+            )
         },
         topBar = {
             TopAppBar(

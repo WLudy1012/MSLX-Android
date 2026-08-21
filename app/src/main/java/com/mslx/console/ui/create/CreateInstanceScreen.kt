@@ -33,8 +33,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -46,8 +44,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -72,6 +68,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.mslx.console.ui.MainBottomNav
+import com.mslx.console.ui.TopPage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -79,6 +77,7 @@ import kotlinx.coroutines.withContext
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun CreateInstanceScreen(
+    onOpenHome: () -> Unit,
     onOpenInstances: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenConsole: (Long) -> Unit,
@@ -113,11 +112,17 @@ fun CreateInstanceScreen(
     Scaffold(
         topBar = { TopAppBar(title = { Text("新建实例", fontWeight = FontWeight.Bold) }) },
         bottomBar = {
-            NavigationBar {
-                NavigationBarItem(selected = false, onClick = onOpenInstances, icon = { Icon(Icons.Filled.List, null) }, label = { Text("实例") })
-                NavigationBarItem(selected = true, onClick = viewModel::reset, icon = { Icon(Icons.Filled.Add, null) }, label = { Text("新建") })
-                NavigationBarItem(selected = false, onClick = onOpenSettings, icon = { Icon(Icons.Filled.Settings, null) }, label = { Text("设置") })
-            }
+            MainBottomNav(
+                current = TopPage.NEW_INSTANCE,
+                onNavigate = { page ->
+                    when (page) {
+                        TopPage.HOME -> onOpenHome()
+                        TopPage.INSTANCES -> onOpenInstances()
+                        TopPage.NEW_INSTANCE -> viewModel.reset()
+                        TopPage.SETTINGS -> onOpenSettings()
+                    }
+                },
+            )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->

@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,10 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedTextField
@@ -36,8 +32,6 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -58,13 +52,16 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mslx.console.data.model.InstanceSummary
+import com.mslx.console.ui.MainBottomNav
 import com.mslx.console.ui.StatusBadge
 import com.mslx.console.ui.StatusDot
+import com.mslx.console.ui.TopPage
 import com.mslx.console.ui.statusColor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InstancesScreen(
+    onOpenHome: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenNewInstance: () -> Unit,
     onOpenInstance: (Long) -> Unit,
@@ -81,11 +78,17 @@ fun InstancesScreen(
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                NavigationBarItem(selected = true, onClick = {}, icon = { Icon(Icons.Filled.List, null) }, label = { Text("实例") })
-                NavigationBarItem(selected = false, onClick = onOpenNewInstance, icon = { Icon(Icons.Filled.Add, null) }, label = { Text("新建") })
-                NavigationBarItem(selected = false, onClick = onOpenSettings, icon = { Icon(Icons.Filled.Settings, null) }, label = { Text("设置") })
-            }
+            MainBottomNav(
+                current = TopPage.INSTANCES,
+                onNavigate = { page ->
+                    when (page) {
+                        TopPage.HOME -> onOpenHome()
+                        TopPage.INSTANCES -> {}
+                        TopPage.NEW_INSTANCE -> onOpenNewInstance()
+                        TopPage.SETTINGS -> onOpenSettings()
+                    }
+                },
+            )
         },
         topBar = {
             TopAppBar(
@@ -180,16 +183,6 @@ fun InstancesScreen(
                             ),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            item {
-                                val info = state.systemInfo
-                                ResourceSummary(
-                                    cpu = info?.cpuUsage,
-                                    memoryUsage = info?.memoryUsage,
-                                    memoryUsed = info?.memoryUsed,
-                                    memoryTotal = info?.memoryTotal,
-                                    protocol = protocolLabel(viewModel.baseUrl),
-                                )
-                            }
                             items(state.instances, key = { it.id }) { instance ->
                                 InstanceCard(
                                     instance = instance,
@@ -230,48 +223,6 @@ fun InstancesScreen(
         )
     }
 }
-
-@Composable
-private fun ResourceSummary(
-    cpu: Double?,
-    memoryUsage: Double?,
-    memoryUsed: Double?,
-    memoryTotal: Double?,
-    protocol: String,
-) {
-    Card(shape = RoundedCornerShape(12.dp)) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
-        ) {
-            Metric("CPU", cpu?.let { "${it.coerceIn(0.0, 100.0).formatMetric()}%" } ?: "Daemon 未提供")
-            val memory = when {
-                memoryUsed != null && memoryTotal != null && memoryTotal > 0 -> "${memoryUsed.formatMetric()} / ${memoryTotal.formatMetric()}"
-                memoryUsage != null -> "${memoryUsage.coerceIn(0.0, 100.0).formatMetric()}%"
-                else -> "Daemon 未提供"
-            }
-            Metric("内存", memory)
-            Metric("连接协议", protocol)
-        }
-    }
-}
-
-/** 根据 Daemon 地址协议推导连接协议指标文案。 */
-private fun protocolLabel(baseUrl: String): String = when {
-    baseUrl.startsWith("https://", ignoreCase = true) -> "HTTPS / WSS"
-    baseUrl.startsWith("http://", ignoreCase = true) -> "HTTP / WS"
-    else -> "未知"
-}
-
-@Composable
-private fun RowScope.Metric(label: String, value: String) {
-    Column(Modifier.weight(1f)) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-private fun Double.formatMetric(): String = String.format(java.util.Locale.US, "%.1f", this)
 
 @Composable
 private fun EmptyIcon() {

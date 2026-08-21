@@ -5,7 +5,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mslx.console.MSLXApplication
 import com.mslx.console.data.model.InstanceSummary
-import com.mslx.console.data.model.SystemInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -17,7 +16,6 @@ data class InstancesUiState(
     val deleting: Boolean = false,
     val error: String? = null,
     val instances: List<InstanceSummary> = emptyList(),
-    val systemInfo: SystemInfo? = null,
 )
 
 class InstancesViewModel(application: Application) : AndroidViewModel(application) {
@@ -52,17 +50,10 @@ class InstancesViewModel(application: Application) : AndroidViewModel(applicatio
             _state.update { it.copy(refreshing = true, error = null) }
         }
         viewModelScope.launch {
-            val status = repository.getStatus().getOrNull()
             repository.listInstances().fold(
                 onSuccess = { list ->
                     _state.update {
-                        val metrics = status?.systemInfo ?: SystemInfo(
-                            cpuUsage = status?.cpuUsage,
-                            memoryUsage = status?.memoryUsage,
-                            memoryUsed = status?.memoryUsed,
-                            memoryTotal = status?.memoryTotal,
-                        )
-                        it.copy(loading = false, refreshing = false, error = null, instances = list, systemInfo = metrics)
+                        it.copy(loading = false, refreshing = false, error = null, instances = list)
                     }
                 },
                 onFailure = { e ->
