@@ -79,6 +79,9 @@ fun SettingsScreen(
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     var pendingDelete by remember { mutableStateOf<DaemonConfig?>(null) }
+    var themeExpanded by remember { mutableStateOf(false) }
+    var daemonExpanded by remember { mutableStateOf(true) }
+    var aboutExpanded by remember { mutableStateOf(false) }
 
     // 手动检查更新：必须与 MainActivity 的 UpdateHost 共用同一个 activity 作用域 ViewModel
     val activity = LocalContext.current.findActivity()
@@ -160,8 +163,8 @@ fun SettingsScreen(
             Spacer(Modifier.size(20.dp))
 
             // ---- 主题颜色 ----
-            SectionTitle("主题颜色")
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+            SectionTitle("主题颜色", expanded = themeExpanded, onToggle = { themeExpanded = !themeExpanded })
+            if (themeExpanded) Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     ThemeOption(
                         title = "动态取色 (Material You)",
@@ -197,8 +200,8 @@ fun SettingsScreen(
             Spacer(Modifier.size(20.dp))
 
             // ---- Daemon 管理 ----
-            SectionTitle("Daemon")
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+            SectionTitle("Daemon", expanded = daemonExpanded, onToggle = { daemonExpanded = !daemonExpanded })
+            if (daemonExpanded) Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
                 Column(modifier = Modifier.padding(vertical = 4.dp)) {
                     if (settings.daemons.isEmpty()) {
                         Text(
@@ -234,8 +237,8 @@ fun SettingsScreen(
             Spacer(Modifier.size(20.dp))
 
             // ---- 关于与更新 ----
-            SectionTitle("关于")
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+            SectionTitle("关于", expanded = aboutExpanded, onToggle = { aboutExpanded = !aboutExpanded })
+            if (aboutExpanded) Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -298,14 +301,14 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SectionTitle(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
-    )
+private fun SectionTitle(text: String, expanded: Boolean, onToggle: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(start = 4.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+        Text(if (expanded) "收起" else "展开", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+    }
 }
 
 @Composable

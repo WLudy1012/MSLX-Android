@@ -32,6 +32,7 @@ import com.mslx.console.data.remote.MslxApi
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import retrofit2.HttpException
 
 /** 实例相关的数据入口，封装 REST 调用与 SignalR 控制台客户端创建。 */
 class InstanceRepository {
@@ -51,18 +52,30 @@ class InstanceRepository {
 
     /** 配置连接地址并重建 API 客户端(每次连接/切换连接时调用)。 */
     fun configure(baseUrl: String, apiKey: String) {
-        val normalized = baseUrl.trim().trimEnd('/')
+        val normalized = ApiClient.normalizeDaemonUrl(baseUrl)
         this.baseUrl = normalized
-        this.apiKey = apiKey
-        this.api = ApiClient.build(normalized, apiKey)
+        this.apiKey = apiKey.trim()
+        this.api = ApiClient.build(normalized, this.apiKey)
     }
 
     private fun requireApi(): MslxApi =
         api ?: throw IllegalStateException("尚未配置连接信息")
 
     suspend fun verify(): Result<Unit> = runCatching {
-        val resp = requireApi().status()
-        if (resp.code != 200) throw IllegalStateException(resp.message ?: "API Key 无效")
+        try {
+            val resp = requireApi().status()
+            if (resp.code != 200) {
+                throw IllegalStateException(resp.message ?: "Daemon 鉴权失败，请检查 API Key")
+            }
+            if (resp.data == null) {
+                throw IllegalStateException("Daemon 鉴权失败：未返回有效状态")
+            }
+        } catch (e: HttpException) {
+            if (e.code() == 401 || e.code() == 403) {
+                throw IllegalStateException("Daemon 鉴权失败，请检查 API Key", e)
+            }
+            throw e
+        }
     }
 
     suspend fun getStatus(): Result<StatusData> = runCatching {
@@ -125,6 +138,12 @@ class InstanceRepository {
         if (resp.code != 200) throw IllegalStateException(resp.message ?: "创建失败")
         resp.data?.serverId?.takeIf { it.isNotBlank() }
             ?: throw IllegalStateException("服务器未返回 ServerId")
+    }
+
+    suspend fun deleteInstance(id: Long, deleteFiles: Boolean): Result<String> = runCatching {
+        val resp = requireApi().deleteInstance(id, deleteFiles)
+        if (resp.code != 200) throw IllegalStateException(resp.message ?: "删除实例失败")
+        resp.message ?: "实例已删除"
     }
 
     suspend fun cancelCreation(serverId: String): Result<String> = runCatching {

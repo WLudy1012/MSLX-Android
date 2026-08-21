@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,8 +21,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -38,6 +44,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,6 +71,7 @@ fun InstancesScreen(
     viewModel: InstancesViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var pendingDelete by remember { mutableStateOf<InstanceSummary?>(null) }
 
     // 每次回到本页(如新建实例完成后返回)时刷新实例列表
     LifecycleResumeEffect(Unit) {
@@ -170,10 +180,15 @@ fun InstancesScreen(
                             ),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
+                            item {
+                                val info = state.systemInfo
+                                ResourceSummary(info?.cpuUsage, info?.memoryUsage, info?.memoryUsed, info?.memoryTotal)
+                            }
                             items(state.instances, key = { it.id }) { instance ->
                                 InstanceCard(
                                     instance = instance,
                                     onClick = { onOpenInstance(instance.id) },
+                                    onDelete = { pendingDelete = instance },
                                     modifier = Modifier.animateItem(),
                                 )
                             }
@@ -183,7 +198,60 @@ fun InstancesScreen(
             }
         }
     }
+    pendingDelete?.let { target ->
+        var confirmation by remember(target.id) { mutableStateOf("") }
+        var deleteFiles by remember(target.id) { mutableStateOf(false) }
+        AlertDialog(
+            onDismissRequest = { if (!state.deleting) pendingDelete = null },
+            title = { Text("删除实例") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("请输入实例名 ${target.name ?: "实例 #${target.id}"} 以确认删除。")
+                    OutlinedTextField(confirmation, { confirmation = it }, label = { Text("实例名") }, singleLine = true)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(deleteFiles, { deleteFiles = it })
+                        Text("同时删除磁盘上的服务端数据文件")
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !state.deleting && confirmation == (target.name ?: "实例 #${target.id}"),
+                    onClick = { viewModel.delete(target, deleteFiles) { pendingDelete = null } },
+                ) { Text(if (state.deleting) "删除中..." else "删除") }
+            },
+            dismissButton = { TextButton(enabled = !state.deleting, onClick = { pendingDelete = null }) { Text("取消") } },
+        )
+    }
 }
+
+@Composable
+private fun ResourceSummary(cpu: Double?, memoryUsage: Double?, memoryUsed: Double?, memoryTotal: Double?) {
+    Card(shape = RoundedCornerShape(12.dp)) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            Metric("CPU", cpu?.let { "${it.coerceIn(0.0, 100.0).formatMetric()}%" } ?: "Daemon 未提供")
+            val memory = when {
+                memoryUsed != null && memoryTotal != null && memoryTotal > 0 -> "${memoryUsed.formatMetric()} / ${memoryTotal.formatMetric()}"
+                memoryUsage != null -> "${memoryUsage.coerceIn(0.0, 100.0).formatMetric()}%"
+                else -> "Daemon 未提供"
+            }
+            Metric("内存", memory)
+        }
+    }
+}
+
+@Composable
+private fun RowScope.Metric(label: String, value: String) {
+    Column(Modifier.weight(1f)) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+private fun Double.formatMetric(): String = String.format(java.util.Locale.US, "%.1f", this)
 
 @Composable
 private fun EmptyIcon() {
@@ -207,6 +275,7 @@ private fun EmptyIcon() {
 private fun InstanceCard(
     instance: InstanceSummary,
     onClick: () -> Unit,
+    onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -253,8 +322,11 @@ private fun InstanceCard(
                     )
                 }
             }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Filled.Delete, contentDescription = "删除实例", tint = MaterialTheme.colorScheme.error)
+            }
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mslx.console.MSLXApplication
 import com.mslx.console.data.model.InstanceSummary
+import com.mslx.console.data.model.SystemInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -13,8 +14,10 @@ import kotlinx.coroutines.launch
 data class InstancesUiState(
     val loading: Boolean = true,
     val refreshing: Boolean = false,
+    val deleting: Boolean = false,
     val error: String? = null,
     val instances: List<InstanceSummary> = emptyList(),
+    val systemInfo: SystemInfo? = null,
 )
 
 class InstancesViewModel(application: Application) : AndroidViewModel(application) {
@@ -31,6 +34,17 @@ class InstancesViewModel(application: Application) : AndroidViewModel(applicatio
         refresh(initial = true)
     }
 
+    fun delete(instance: InstanceSummary, deleteFiles: Boolean, onDone: () -> Unit) {
+        if (_state.value.deleting) return
+        _state.update { it.copy(deleting = true, error = null) }
+        viewModelScope.launch {
+            repository.deleteInstance(instance.id, deleteFiles).fold(
+                onSuccess = { _state.update { it.copy(deleting = false) }; onDone(); refresh() },
+                onFailure = { e -> _state.update { it.copy(deleting = false, error = e.message ?: "删除失败") } },
+            )
+        }
+    }
+
     fun refresh(initial: Boolean = false) {
         if (initial) {
             _state.update { it.copy(loading = true, error = null) }
@@ -38,10 +52,17 @@ class InstancesViewModel(application: Application) : AndroidViewModel(applicatio
             _state.update { it.copy(refreshing = true, error = null) }
         }
         viewModelScope.launch {
+            val status = repository.getStatus().getOrNull()
             repository.listInstances().fold(
                 onSuccess = { list ->
                     _state.update {
-                        it.copy(loading = false, refreshing = false, error = null, instances = list)
+                        val metrics = status?.systemInfo ?: SystemInfo(
+                            cpuUsage = status?.cpuUsage,
+                            memoryUsage = status?.memoryUsage,
+                            memoryUsed = status?.memoryUsed,
+                            memoryTotal = status?.memoryTotal,
+                        )
+                        it.copy(loading = false, refreshing = false, error = null, instances = list, systemInfo = metrics)
                     }
                 },
                 onFailure = { e ->

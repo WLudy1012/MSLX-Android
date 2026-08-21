@@ -119,9 +119,9 @@ fun AppNavHost(
                     }
                 },
                 onBack = { navController.popBackStack() },
-                // 启动自动连接失败：回退到主页（实例列表），弹窗已由 ConnectScreen 显示
+                // 自动连接失败：回到手动连接页，鉴权失败时不得进入实例主页
                 onAutoConnectFailed = {
-                    navController.navigate(Routes.INSTANCES) {
+                    navController.navigate(Routes.connect(false, daemonId)) {
                         popUpTo(navController.graph.id) { inclusive = true }
                         launchSingleTop = true
                     }

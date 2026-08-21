@@ -20,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "MSLXConsole"
+rootProject.name = "MSLX_APP-Android"
 include(":app")

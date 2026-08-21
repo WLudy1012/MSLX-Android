@@ -178,7 +178,7 @@ fun InstanceSettingsScreen(
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             EntryCard("插件 / 模组", Modifier.weight(1f)) { onOpenPluginsMods() }
-                            EntryCard("server.properties", Modifier.weight(1f)) { onOpenServerProps() }
+                            EntryCard("服务器设置", Modifier.weight(1f)) { onOpenServerProps() }
                         }
                     }
                     item {

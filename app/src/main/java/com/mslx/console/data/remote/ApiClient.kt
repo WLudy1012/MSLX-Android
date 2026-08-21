@@ -137,6 +137,14 @@ object ApiClient {
             .create(GitHubReleaseApi::class.java)
     }
 
+    fun normalizeDaemonUrl(input: String): String {
+        var url = input.trim().trimEnd('/')
+        if (url.isNotBlank() && !url.startsWith("http://", ignoreCase = true) && !url.startsWith("https://", ignoreCase = true)) {
+            url = "http://$url"
+        }
+        return url
+    }
+
     private fun ensureTrailingSlash(url: String): String =
         if (url.endsWith("/")) url else "$url/"
 }
