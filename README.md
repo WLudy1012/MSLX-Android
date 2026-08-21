@@ -56,7 +56,7 @@ app/src/main/java/com/mslx/console/
 
 ## 📱 使用
 
-1. 在电脑上启动 **MSLX Daemon**(默认监听 `http://localhost:1027`),并在其 Web 面板/配置中找到 **API Key**。
+1. 在电脑上启动 **MSLX Daemon**(默认监听 `http://192.168.1.100:1027`),并在其 Web 面板/配置中找到 **API Key**。
 2. 手机与电脑连入**同一局域网**。
 3. 打开本 App,在"连接守护程序"页填写:
    - **Daemon 地址**:电脑的局域网 IP,例如 `http://192.168.1.100:1027`
